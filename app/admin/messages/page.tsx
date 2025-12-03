@@ -26,6 +26,8 @@ type Message = {
   created_at: string;
 };
 
+type PageSize = 25 | 50 | 100 | 200 | "all";
+
 export default function AdminMessagesPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -35,6 +37,10 @@ export default function AdminMessagesPage() {
   const [errorTenants, setErrorTenants] = useState<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<string | null>(null);
   const [searchNumber, setSearchNumber] = useState("");
+
+  // pagination
+  const [pageSize, setPageSize] = useState<PageSize>(50);
+  const [page, setPage] = useState(1);
 
   // 1) Load tenants
   useEffect(() => {
@@ -87,6 +93,7 @@ export default function AdminMessagesPage() {
         const json = await res.json();
         const msgs: Message[] = json.messages ?? json ?? [];
         setMessages(msgs);
+        setPage(1); // reset page when tenant changes
       } catch (err) {
         console.error("Failed to load messages", err);
         setErrorMessages("Failed to load messages");
@@ -106,19 +113,54 @@ export default function AdminMessagesPage() {
   const filteredMessages = useMemo(() => {
     if (!searchNumber.trim()) return messages;
     const q = searchNumber.trim();
-    return messages.filter((m) => {
+    const out = messages.filter((m) => {
       const to = m.to_number ?? "";
       const from = m.from_number ?? "";
       return to.includes(q) || from.includes(q);
     });
+    return out;
   }, [messages, searchNumber]);
+
+  // reset to first page when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchNumber, pageSize]);
+
+  // pagination calculations
+  const totalMessages = filteredMessages.length;
+  const totalPages =
+    pageSize === "all"
+      ? 1
+      : Math.max(1, Math.ceil(totalMessages / pageSize));
+
+  const currentPage = Math.min(page, totalPages);
+
+  const visibleMessages =
+    pageSize === "all"
+      ? filteredMessages
+      : filteredMessages.slice(
+          (currentPage - 1) * pageSize,
+          currentPage * pageSize
+        );
+
+  const showingFrom =
+    totalMessages === 0
+      ? 0
+      : pageSize === "all"
+      ? 1
+      : (currentPage - 1) * (pageSize as number) + 1;
+  const showingTo =
+    pageSize === "all"
+      ? totalMessages
+      : Math.min(currentPage * (pageSize as number), totalMessages);
 
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-zinc-900">Messages</h1>
       <p className="text-xs text-zinc-500">
         Choose a tenant on the left to view all of their WhatsApp messages.
-        You can search within that tenant by phone number.
+        You can search within that tenant by phone number and control how many
+        rows are shown per page.
       </p>
 
       <div className="grid grid-cols-[260px,1fr] gap-6">
@@ -196,13 +238,38 @@ export default function AdminMessagesPage() {
               )}
             </div>
 
-            <input
-              type="text"
-              value={searchNumber}
-              onChange={(e) => setSearchNumber(e.target.value)}
-              placeholder="Search by number (e.g. 91...)"
-              className="w-64 rounded-full border border-zinc-200 px-3 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-400"
-            />
+            <div className="flex items-center gap-2">
+              {/* Page size dropdown */}
+              <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) =>
+                    setPageSize(
+                      e.target.value === "all"
+                        ? "all"
+                        : (Number(e.target.value) as PageSize)
+                    )
+                  }
+                  className="h-7 rounded-full border border-zinc-200 bg-white px-2 text-[11px] outline-none focus:border-zinc-400"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+
+              {/* Number search */}
+              <input
+                type="text"
+                value={searchNumber}
+                onChange={(e) => setSearchNumber(e.target.value)}
+                placeholder="Search by number (e.g. 91...)"
+                className="w-64 rounded-full border border-zinc-200 px-3 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-400"
+              />
+            </div>
           </div>
 
           {/* Messages table */}
@@ -225,52 +292,98 @@ export default function AdminMessagesPage() {
                 : "No messages found for this tenant."}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <table className="min-w-full border-collapse text-left text-xs">
-                <thead className="bg-zinc-50 text-[11px] uppercase tracking-wide text-zinc-500">
-                  <tr>
-                    <th className="px-3 py-2">Direction</th>
-                    <th className="px-3 py-2">To</th>
-                    <th className="px-3 py-2">From</th>
-                    <th className="px-3 py-2">Body</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Created at</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {filteredMessages.map((m) => (
-                    <tr key={m.id} className="hover:bg-zinc-50">
-                      <td className="px-3 py-2 text-[11px] font-medium">
-                        {m.direction === "outbound" ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
-                            Outbound
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700">
-                            Inbound
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-[11px] text-zinc-700">
-                        {m.to_number ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-[11px] text-zinc-700">
-                        {m.from_number ?? "—"}
-                      </td>
-                      <td className="max-w-xs px-3 py-2 text-[11px] text-zinc-700">
-                        {m.body_text ?? ""}
-                      </td>
-                      <td className="px-3 py-2 text-[11px] text-zinc-500">
-                        {m.status ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-[11px] text-zinc-500">
-                        {new Date(m.created_at).toLocaleString()}
-                      </td>
+            <>
+              <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                <table className="min-w-full border-collapse text-left text-xs">
+                  <thead className="bg-zinc-50 text-[11px] uppercase tracking-wide text-zinc-500">
+                    <tr>
+                      <th className="px-3 py-2">Direction</th>
+                      <th className="px-3 py-2">To</th>
+                      <th className="px-3 py-2">From</th>
+                      <th className="px-3 py-2">Body</th>
+                      <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2">Created at</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {visibleMessages.map((m) => (
+                      <tr key={m.id} className="hover:bg-zinc-50">
+                        <td className="px-3 py-2 text-[11px] font-medium">
+                          {m.direction === "outbound" ? (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">
+                              Outbound
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700">
+                              Inbound
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-[11px] text-zinc-700">
+                          {m.to_number ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 text-[11px] text-zinc-700">
+                          {m.from_number ?? "—"}
+                        </td>
+                        <td className="max-w-xs px-3 py-2 text-[11px] text-zinc-700">
+                          {m.body_text ?? ""}
+                        </td>
+                        <td className="px-3 py-2 text-[11px] text-zinc-500">
+                          {m.status ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 text-[11px] text-zinc-500">
+                          {new Date(m.created_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination info + controls */}
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-500">
+                <div>
+                  {totalMessages === 0 ? (
+                    "No messages."
+                  ) : (
+                    <>
+                      Showing <span className="font-medium">{showingFrom}</span>{" "}
+                      – <span className="font-medium">{showingTo}</span> of{" "}
+                      <span className="font-medium">{totalMessages}</span>{" "}
+                      messages
+                    </>
+                  )}
+                </div>
+
+                {pageSize !== "all" && totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="rounded-full border border-zinc-200 bg-white px-3 py-1 disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span>
+                      Page{" "}
+                      <span className="font-medium">{currentPage}</span> of{" "}
+                      <span className="font-medium">{totalPages}</span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      className="rounded-full border border-zinc-200 bg-white px-3 py-1 disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </section>
       </div>
