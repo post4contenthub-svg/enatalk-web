@@ -18,6 +18,7 @@ export default function AdminTenantsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [customDays, setCustomDays] = useState<Record<string, string>>({});
 
   async function loadTenants() {
     try {
@@ -102,6 +103,18 @@ export default function AdminTenantsPage() {
     }
   }
 
+  async function extendTrialCustom(tenantId: string) {
+    const value = customDays[tenantId];
+    const days = Number(value);
+
+    if (!value || !Number.isFinite(days) || days <= 0) {
+      setError("Please enter a valid positive number of days.");
+      return;
+    }
+
+    await extendTrial(tenantId, days);
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8">
       <div className="mx-auto max-w-6xl">
@@ -154,6 +167,7 @@ export default function AdminTenantsPage() {
                     : "–";
 
                   const isBusy = actionLoadingId === t.id;
+                  const customValue = customDays[t.id] ?? "";
 
                   return (
                     <tr
@@ -213,7 +227,7 @@ export default function AdminTenantsPage() {
                             </button>
                           )}
 
-                          {/* Extend trial by 7 days */}
+                          {/* Quick +7d */}
                           <button
                             onClick={() => extendTrial(t.id, 7)}
                             disabled={isBusy}
@@ -221,6 +235,30 @@ export default function AdminTenantsPage() {
                           >
                             {isBusy ? "Working…" : "+7d"}
                           </button>
+
+                          {/* Custom days input */}
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={1}
+                              className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-900"
+                              placeholder="days"
+                              value={customValue}
+                              onChange={(e) =>
+                                setCustomDays((prev) => ({
+                                  ...prev,
+                                  [t.id]: e.target.value,
+                                }))
+                              }
+                            />
+                            <button
+                              onClick={() => extendTrialCustom(t.id)}
+                              disabled={isBusy}
+                              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                            >
+                              {isBusy ? "Working…" : "Extend"}
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
