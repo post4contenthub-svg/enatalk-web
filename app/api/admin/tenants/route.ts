@@ -2,117 +2,94 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
-});
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
 
 export async function GET() {
   try {
-    // 1) Load tenants (portfolio list)
+    // 1️⃣ Load tenants
     const { data: tenants, error: tErr } = await supabase
       .from("tenants")
       .select(
-        `
-        id,
-        name,
-        plan_code,
-        billing_status,
-        trial_end_at,
-        is_paused
-      `,
+        "id, name, plan_code, billing_status, trial_end_at, is_paused"
       )
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false });
 
-    if (tErr || !tenants) {
-      console.error("Failed to load tenants:", tErr);
+    if (tErr) {
+      console.error("Tenant load failed:", tErr);
       return NextResponse.json(
         { error: "Failed to load tenants" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
-    const tenantIds = tenants.map((t) => t.id as string);
+    if (!tenants || tenants.length === 0) {
+      return NextResponse.json({ tenants: [] });
+    }
 
-    // Default map so we can safely attach stats
-    const stats: Record<
+    const tenantIds = tenants.map((t) => t.id);
+
+    // 2️⃣ Load all messages for these tenants
+    const { data: messages, error: mErr } = await supabase
+      .from("messages")
+      .select("tenant_id, direction, created_at")
+      .in("tenant_id", tenantIds);
+
+    if (mErr) {
+      console.error("Message load failed:", mErr);
+      return NextResponse.json(
+        { error: "Failed to load message stats" },
+        { status: 500 }
+      );
+    }
+
+    // 3️⃣ Aggregate in JS (safe + fast for admin scale)
+    const statsMap: Record<
       string,
-      { outbound_count: number; inbound_count: number; last_message_at: string | null }
+      { outbound: number; inbound: number; last_message_at: string | null }
     > = {};
-    for (const id of tenantIds) {
-      stats[id] = {
-        outbound_count: 0,
-        inbound_count: 0,
-        last_message_at: null,
-      };
-    }
 
-    if (tenantIds.length > 0) {
-      // 2) Aggregate counts per tenant & direction
-      const { data: counts, error: cErr } = await supabase
-        .from("messages")
-        .select("tenant_id, direction, count:count(*)")
-        .in("tenant_id", tenantIds)
-        .group("tenant_id, direction");
-
-      if (cErr) {
-        console.error("Failed to load message counts:", cErr);
-      } else if (counts) {
-        for (const row of counts as any[]) {
-          const tenantId = row.tenant_id as string;
-          const direction = row.direction as string;
-          const count = Number(row.count) || 0;
-          const entry = stats[tenantId];
-          if (!entry) continue;
-
-          if (direction === "outbound") {
-            entry.outbound_count = count;
-          } else if (direction === "inbound") {
-            entry.inbound_count = count;
-          }
-        }
+    for (const msg of messages ?? []) {
+      if (!statsMap[msg.tenant_id]) {
+        statsMap[msg.tenant_id] = {
+          outbound: 0,
+          inbound: 0,
+          last_message_at: null,
+        };
       }
 
-      // 3) Last message per tenant (max created_at)
-      const { data: lastRows, error: lastErr } = await supabase
-        .from("messages")
-        .select("tenant_id, created_at")
-        .in("tenant_id", tenantIds)
-        .order("created_at", { ascending: false });
+      if (msg.direction === "outbound") {
+        statsMap[msg.tenant_id].outbound++;
+      } else if (msg.direction === "inbound") {
+        statsMap[msg.tenant_id].inbound++;
+      }
 
-      if (lastErr) {
-        console.error("Failed to load last message timestamps:", lastErr);
-      } else if (lastRows) {
-        for (const row of lastRows as any[]) {
-          const tenantId = row.tenant_id as string;
-          const createdAt = row.created_at as string;
-          const entry = stats[tenantId];
-          if (!entry) continue;
-
-          // first time we see this tenant (because sorted desc)
-          if (!entry.last_message_at) {
-            entry.last_message_at = createdAt;
-          }
-        }
+      if (
+        !statsMap[msg.tenant_id].last_message_at ||
+        msg.created_at >
+          statsMap[msg.tenant_id].last_message_at!
+      ) {
+        statsMap[msg.tenant_id].last_message_at = msg.created_at;
       }
     }
 
-    // 4) Attach stats to tenants
-    const result = tenants.map((t) => ({
+    // 4️⃣ Merge back into tenants
+    const enrichedTenants = tenants.map((t) => ({
       ...t,
-      outbound_count: stats[t.id]?.outbound_count ?? 0,
-      inbound_count: stats[t.id]?.inbound_count ?? 0,
-      last_message_at: stats[t.id]?.last_message_at ?? null,
+      outbound_count: statsMap[t.id]?.outbound ?? 0,
+      inbound_count: statsMap[t.id]?.inbound ?? 0,
+      last_message_at: statsMap[t.id]?.last_message_at ?? null,
     }));
 
-    return NextResponse.json({ tenants: result });
+    return NextResponse.json({ tenants: enrichedTenants });
   } catch (err) {
-    console.error("Unexpected error in /api/admin/tenants:", err);
+    console.error("Admin tenants API crash:", err);
     return NextResponse.json(
-      { error: "Failed to load tenants" },
-      { status: 500 },
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
 }
