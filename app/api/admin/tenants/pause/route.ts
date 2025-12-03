@@ -5,14 +5,14 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for /api/admin/tenants");
+  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for /api/admin/tenants/pause");
 }
 
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
-export async function GET(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     if (!supabase) {
       return NextResponse.json(
@@ -21,22 +21,31 @@ export async function GET(_req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
+    const { tenantId } = await req.json();
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: "tenantId is required" },
+        { status: 400 },
+      );
+    }
+
+    const { error } = await supabase
       .from("tenants")
-      .select("id, name, whatsapp_number, plan_code, billing_status, trial_end_at, is_paused, created_at")
-      .order("created_at", { ascending: false });
+      .update({ is_paused: true })
+      .eq("id", tenantId);
 
     if (error) {
-      console.error("Admin tenants list error:", error);
+      console.error("Pause tenant error:", error);
       return NextResponse.json(
-        { error: "Failed to load tenants" },
+        { error: "Failed to pause tenant" },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ tenants: data ?? [] }, { status: 200 });
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
-    console.error("Admin tenants list unexpected error:", err);
+    console.error("Pause tenant unexpected error:", err);
     return NextResponse.json(
       { error: "Internal error", details: String(err) },
       { status: 500 },
