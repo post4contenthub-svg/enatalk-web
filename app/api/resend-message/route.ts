@@ -1,35 +1,69 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-const SUPABASE_FUNCTION_URL =
-  'https://sfvkkioerqguspxhpjjj.functions.supabase.co/resend-message';
-
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-export async function POST(req: NextRequest) {
-  if (!ADMIN_SECRET) {
-    console.error('ADMIN_SECRET env var is NOT set in Next.js server');
-    return NextResponse.json(
-      { error: 'Server misconfigured: ADMIN_SECRET missing' },
-      { status: 500 }
-    );
-  }
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !ADMIN_SECRET) {
+  console.error("Missing required env vars for resend-message route");
+}
 
+const RESEND_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/resend-message`;
+
+export async function POST(req: NextRequest) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !ADMIN_SECRET) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "SERVER_MISCONFIGURED",
+          message:
+            "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or ADMIN_SECRET env vars are missing",
+        },
+        { status: 500 },
+      );
+    }
+
     const body = await req.json();
 
-    const res = await fetch(SUPABASE_FUNCTION_URL, {
-      method: 'POST',
+    // Forward the request to the Supabase Edge Function
+    const res = await fetch(RESEND_FUNCTION_URL, {
+      method: "POST",
       headers: {
-        'x-admin-secret': ADMIN_SECRET,     // 👈 key part
-        'Content-Type': 'application/json',
+        // ✅ REQUIRED by Supabase edge functions gateway
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        // ✅ Used inside your function to verify admin
+        "x-admin-secret": ADMIN_SECRET,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
 
     const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+
+    if (!res.ok) {
+      console.error("Resend-message function error:", data);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "RESEND_FUNCTION_FAILED",
+          status: res.status,
+          details: data,
+        },
+        { status: res.status },
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
   } catch (err) {
-    console.error('API /api/resend-message error', err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    console.error("API /api/resend-message error:", err);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "INTERNAL_ERROR",
+        message: String(err),
+      },
+      { status: 500 },
+    );
   }
 }
