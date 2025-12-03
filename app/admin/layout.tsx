@@ -1,70 +1,71 @@
 // app/admin/layout.tsx
-import type { ReactNode } from 'react';
+import React from "react";
+import Link from "next/link";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export const metadata = {
+  title: "Enatalk Admin",
+};
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-        backgroundColor: '#f5f7fb',
-      }}
-    >
-      <header
-        style={{
-          height: 56,
-          borderBottom: '1px solid #e5e7eb',
-          background: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 1.5rem',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ fontWeight: 600 }}>Enatalk</span>
-          <nav style={{ display: 'flex', gap: '0.75rem', fontSize: 14 }}>
-            <a href="/" style={{ textDecoration: 'none', color: '#4b5563' }}>
-              Home
-            </a>
-            <a
-              href="/admin"
-              style={{ textDecoration: 'none', color: '#111827', fontWeight: 500 }}
+    <div className="min-h-screen bg-zinc-50">
+      {/* Top bar (inside main app header) */}
+      <header className="border-b bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Link href="/" className="font-semibold text-zinc-900">
+              Enatalk
+            </Link>
+            <span className="text-zinc-400">/</span>
+            <span className="text-zinc-600">Admin</span>
+          </div>
+
+          <form action="/api/admin/logout" method="POST">
+            <button
+              type="submit"
+              className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
             >
-              Admin
-            </a>
-          </nav>
+              Logout
+            </button>
+          </form>
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1 }}>
-        <aside
-          style={{
-            width: 240,
-            borderRight: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: '1.5rem 1rem',
-          }}
-        >
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: '1rem' }}>
-            Admin
-          </h2>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
-            <a href="/admin" style={{ textDecoration: 'none', color: '#111827' }}>
+      {/* Main admin layout */}
+      <div className="mx-auto flex max-w-6xl gap-6 px-6 py-6">
+        {/* Sidebar */}
+        <aside className="w-52 shrink-0 rounded-xl bg-white p-4 shadow-sm">
+          <h2 className="mb-4 text-sm font-semibold text-zinc-900">Admin</h2>
+          <nav className="space-y-1 text-sm">
+            <Link
+              href="/admin"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
               Dashboard
-            </a>
-            <a href="/admin/messages" style={{ textDecoration: 'none', color: '#4b5563' }}>
+            </Link>
+            <Link
+              href="/admin/messages"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
               Messages
-            </a>
-            <a href="/admin/test-whatsapp" style={{ textDecoration: 'none', color: '#4b5563' }}>
+            </Link>
+            <Link
+              href="/admin/test-whatsapp"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
               Test WhatsApp
-            </a>
+            </Link>
           </nav>
         </aside>
 
-        <main style={{ flex: 1, padding: '1.5rem' }}>{children}</main>
+        {/* Page content */}
+        <main className="flex-1 rounded-xl bg-white p-6 shadow-sm">
+          {children}
+        </main>
       </div>
     </div>
   );
