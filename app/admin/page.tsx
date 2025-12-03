@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Tenant = {
   id: string;
@@ -11,7 +11,12 @@ type Tenant = {
   trial_end_at?: string | null;
   is_paused: boolean;
   created_at?: string | null;
+  outbound_count?: number;
+  inbound_count?: number;
+  last_message_at?: string | null;
 };
+
+type StatusFilter = "all" | "active" | "paused";
 
 export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -19,6 +24,7 @@ export default function AdminTenantsPage() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [customDays, setCustomDays] = useState<Record<string, string>>({});
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   async function loadTenants() {
     try {
@@ -115,16 +121,59 @@ export default function AdminTenantsPage() {
     await extendTrial(tenantId, days);
   }
 
+  // ---------- Portfolio stats (at a glance) ----------
+
+  const stats = useMemo(() => {
+    const total = tenants.length;
+    const active = tenants.filter((t) => !t.is_paused).length;
+    const paused = tenants.filter((t) => t.is_paused).length;
+
+    const trialing = tenants.filter(
+      (t) => t.billing_status === "trialing" || t.plan_code === "trial",
+    ).length;
+
+    const totalOutbound = tenants.reduce(
+      (sum, t) => sum + (t.outbound_count ?? 0),
+      0,
+    );
+    const totalInbound = tenants.reduce(
+      (sum, t) => sum + (t.inbound_count ?? 0),
+      0,
+    );
+
+    return {
+      total,
+      active,
+      paused,
+      trialing,
+      totalOutbound,
+      totalInbound,
+    };
+  }, [tenants]);
+
+  const filteredTenants = useMemo(() => {
+    if (statusFilter === "active") {
+      return tenants.filter((t) => !t.is_paused);
+    }
+    if (statusFilter === "paused") {
+      return tenants.filter((t) => t.is_paused);
+    }
+    return tenants;
+  }, [tenants, statusFilter]);
+
+  // ---------------------------------------------------
+
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-6 flex items-center justify-between">
+      <div className="mx-auto max-w-6xl space-y-6">
+        {/* Header */}
+        <header className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">
               Enatalk Admin – Tenants
             </h1>
             <p className="text-sm text-zinc-500">
-              Manage tenant status, pause abusive users, and monitor trials.
+              Portfolio view: see who is active, paused, and how much they send.
             </p>
           </div>
           <button
@@ -136,16 +185,106 @@ export default function AdminTenantsPage() {
           </button>
         </header>
 
+        {/* Summary cards */}
+        <section className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+            <p className="text-xs font-medium uppercase text-zinc-500">
+              Total tenants
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-900">
+              {stats.total}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {stats.trialing} trialing
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase text-emerald-700">
+              Active
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-emerald-900">
+              {stats.active}
+            </p>
+            <p className="mt-1 text-xs text-emerald-700">
+              Sending and not paused
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-xs font-medium uppercase text-red-700">
+              Paused
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-red-900">
+              {stats.paused}
+            </p>
+            <p className="mt-1 text-xs text-red-700">
+              Blocked by you or auto-rules
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+            <p className="text-xs font-medium uppercase text-zinc-500">
+              Messages (all time)
+            </p>
+            <p className="mt-1 text-xl font-semibold text-zinc-900">
+              {stats.totalOutbound} <span className="text-xs">outbound</span>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {stats.totalInbound} inbound
+            </p>
+          </div>
+        </section>
+
+        {/* Status filter + errors */}
+        <section className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white p-1 text-xs font-medium text-zinc-600">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`rounded-full px-3 py-1 ${
+                statusFilter === "all"
+                  ? "bg-zinc-900 text-white"
+                  : "hover:bg-zinc-100"
+              }`}
+            >
+              All ({stats.total})
+            </button>
+            <button
+              onClick={() => setStatusFilter("active")}
+              className={`rounded-full px-3 py-1 ${
+                statusFilter === "active"
+                  ? "bg-emerald-600 text-white"
+                  : "hover:bg-zinc-100"
+              }`}
+            >
+              Active ({stats.active})
+            </button>
+            <button
+              onClick={() => setStatusFilter("paused")}
+              className={`rounded-full px-3 py-1 ${
+                statusFilter === "paused"
+                  ? "bg-red-600 text-white"
+                  : "hover:bg-zinc-100"
+              }`}
+            >
+              Paused ({stats.paused})
+            </button>
+          </div>
+        </section>
+
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         )}
 
+        {/* Table */}
         {loading && tenants.length === 0 ? (
           <p className="text-sm text-zinc-500">Loading tenants…</p>
-        ) : tenants.length === 0 ? (
-          <p className="text-sm text-zinc-500">No tenants found.</p>
+        ) : filteredTenants.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No tenants match the selected filter.
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
             <table className="min-w-full text-left text-sm">
@@ -156,18 +295,28 @@ export default function AdminTenantsPage() {
                   <th className="px-4 py-3">Plan</th>
                   <th className="px-4 py-3">Billing</th>
                   <th className="px-4 py-3">Trial ends</th>
+                  <th className="px-4 py-3 text-center">Outbound</th>
+                  <th className="px-4 py-3 text-center">Inbound</th>
+                  <th className="px-4 py-3">Last message</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {tenants.map((t) => {
+                {filteredTenants.map((t) => {
                   const trialLabel = t.trial_end_at
                     ? new Date(t.trial_end_at).toLocaleDateString()
                     : "–";
 
                   const isBusy = actionLoadingId === t.id;
                   const customValue = customDays[t.id] ?? "";
+
+                  const lastMsgLabel = t.last_message_at
+                    ? new Date(t.last_message_at).toLocaleString()
+                    : "–";
+
+                  const outbound = t.outbound_count ?? 0;
+                  const inbound = t.inbound_count ?? 0;
 
                   return (
                     <tr
@@ -195,6 +344,15 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="px-4 py-3 align-middle text-zinc-700">
                         {trialLabel}
+                      </td>
+                      <td className="px-4 py-3 align-middle text-center text-zinc-800">
+                        {outbound}
+                      </td>
+                      <td className="px-4 py-3 align-middle text-center text-zinc-800">
+                        {inbound}
+                      </td>
+                      <td className="px-4 py-3 align-middle text-zinc-700">
+                        {lastMsgLabel}
                       </td>
                       <td className="px-4 py-3 align-middle">
                         {t.is_paused ? (
