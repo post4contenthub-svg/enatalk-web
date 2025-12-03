@@ -110,6 +110,21 @@ export default function AdminMessagesPage() {
     [tenants, selectedTenantId]
   );
 
+  // Stats for selected tenant
+  const stats = useMemo(() => {
+    let inbound = 0;
+    let outbound = 0;
+    let errors = 0;
+
+    for (const m of messages) {
+      if (m.direction === "inbound") inbound++;
+      if (m.direction === "outbound") outbound++;
+      if ((m.status ?? "").toLowerCase() === "error") errors++;
+    }
+
+    return { inbound, outbound, errors };
+  }, [messages]);
+
   const filteredMessages = useMemo(() => {
     if (!searchNumber.trim()) return messages;
     const q = searchNumber.trim();
@@ -188,9 +203,9 @@ export default function AdminMessagesPage() {
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-zinc-900">Messages</h1>
       <p className="text-xs text-zinc-500">
-        Choose a tenant on the left to view all of their WhatsApp messages.
-        You can search within that tenant by phone number and control how many
-        rows are shown per page.
+        Choose a tenant on the left to view all of their WhatsApp messages. You
+        can search within that tenant by phone number and control how many rows
+        are shown per page.
       </p>
 
       <div className="grid grid-cols-[260px,1fr] gap-6">
@@ -254,7 +269,7 @@ export default function AdminMessagesPage() {
 
         {/* Messages for selected tenant */}
         <section className="space-y-3">
-          {/* Tenant summary + filters */}
+          {/* Tenant summary + stats + filters */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-zinc-900">
@@ -268,37 +283,54 @@ export default function AdminMessagesPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Page size dropdown */}
-              <div className="flex items-center gap-1 text-[11px] text-zinc-500">
-                <span>Rows:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) =>
-                    setPageSize(
-                      e.target.value === "all"
-                        ? "all"
-                        : (Number(e.target.value) as PageSize)
-                    )
-                  }
-                  className="h-7 rounded-full border border-zinc-200 bg-white px-2 text-[11px] outline-none focus:border-zinc-400"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                  <option value="all">All</option>
-                </select>
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Stats chips */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-sky-700">
+                  <span>Inbound</span>
+                  <span className="font-semibold">{stats.inbound}</span>
+                </div>
+                <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                  <span>Outbound</span>
+                  <span className="font-semibold">{stats.outbound}</span>
+                </div>
+                <div className="flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-700">
+                  <span>Errors</span>
+                  <span className="font-semibold">{stats.errors}</span>
+                </div>
               </div>
 
-              {/* Number search */}
-              <input
-                type="text"
-                value={searchNumber}
-                onChange={(e) => setSearchNumber(e.target.value)}
-                placeholder="Search by number (e.g. 91...)"
-                className="w-64 rounded-full border border-zinc-200 px-3 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-400"
-              />
+              {/* Page size + search */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                  <span>Rows:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) =>
+                      setPageSize(
+                        e.target.value === "all"
+                          ? "all"
+                          : (Number(e.target.value) as PageSize)
+                      )
+                    }
+                    className="h-7 rounded-full border border-zinc-200 bg-white px-2 text-[11px] outline-none focus:border-zinc-400"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+
+                <input
+                  type="text"
+                  value={searchNumber}
+                  onChange={(e) => setSearchNumber(e.value)}
+                  placeholder="Search by number (e.g. 91...)"
+                  className="w-64 rounded-full border border-zinc-200 px-3 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-400"
+                />
+              </div>
             </div>
           </div>
 
