@@ -1,5 +1,5 @@
 // app/api/admin/messages/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,9 +8,34 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // 1) Load recent messages
+    const { searchParams } = new URL(req.url);
+    const tenantId = searchParams.get("tenant_id");
+
+    // 🔹 If tenant_id is provided → return messages only for that tenant
+    if (tenantId) {
+      const { data, error } = await supabase
+        .from("messages")
+        .select(
+          "id, tenant_id, direction, to_number, from_number, body_text, status, created_at"
+        )
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (error) {
+        console.error("Failed to load tenant messages:", error);
+        return NextResponse.json(
+          { error: "Failed to load messages" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ messages: data ?? [] });
+    }
+
+    // 🔹 No tenant_id → global log with tenant names (used if needed elsewhere)
     const { data: messages, error: mErr } = await supabase
       .from("messages")
       .select(
@@ -29,7 +54,6 @@ export async function GET() {
 
     const safeMessages = messages ?? [];
 
-    // 2) Collect tenant_ids and load tenant names
     const tenantIds = Array.from(
       new Set(
         safeMessages
@@ -48,7 +72,6 @@ export async function GET() {
 
       if (tErr) {
         console.error("Failed to load tenants for messages:", tErr);
-        // We still return messages, just without names
       } else {
         tenantMap = (tenants ?? []).reduce(
           (acc: Record<string, string>, t: any) => {
@@ -60,7 +83,6 @@ export async function GET() {
       }
     }
 
-    // 3) Attach tenant_name to each message
     const transformed = safeMessages.map((m: any) => ({
       id: m.id,
       tenant_id: m.tenant_id,
