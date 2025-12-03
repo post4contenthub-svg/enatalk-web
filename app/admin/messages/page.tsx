@@ -153,8 +153,10 @@ export default function AdminMessagesPage() {
       ? totalMessages
       : Math.min(currentPage * (pageSize as number), totalMessages);
 
-  // 3) Resend handler – calls existing /api/resend-message route
+  // 3) Resend handler – calls /api/resend-message
   const resendMessage = async (message: Message) => {
+    if (!message.id) return;
+
     try {
       const res = await fetch("/api/resend-message", {
         method: "POST",
@@ -162,11 +164,16 @@ export default function AdminMessagesPage() {
         body: JSON.stringify({ messageId: message.id }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
-      if (!res.ok) {
+      if (!res.ok || !json?.ok) {
         console.error("Resend failed:", json);
-        alert(json?.error || "Resend failed");
+        const msg =
+          json?.message ||
+          json?.details?.message ||
+          json?.error ||
+          "Resend failed";
+        alert(msg);
         return;
       }
 
