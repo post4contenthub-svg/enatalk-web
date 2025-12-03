@@ -32,14 +32,12 @@ export default function AdminLayout({
         </div>
       </header>
 
-      {/* Main area with sidebar + page content */}
-      <div className="flex w-full">
+      {/* Body: sidebar + main content */}
+      <div className="flex gap-6 px-6 py-6">
         {/* Sidebar */}
-        <aside className="hidden w-56 border-r bg-white px-4 py-6 text-sm text-zinc-800 md:block">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Admin
-          </h2>
-          <nav className="space-y-1">
+        <aside className="w-56 shrink-0 rounded-xl bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Admin</h2>
+          <nav className="space-y-1 text-sm">
             <Link
               href="/admin"
               className="block rounded-md px-2 py-1 hover:bg-zinc-50"
@@ -62,7 +60,7 @@ export default function AdminLayout({
         </aside>
 
         {/* Page content */}
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

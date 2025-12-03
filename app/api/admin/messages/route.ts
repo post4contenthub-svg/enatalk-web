@@ -1,45 +1,37 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+// app/api/admin/messages/route.ts
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
 
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false },
-});
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const tenantId = searchParams.get('tenant_id');
-
-  if (!tenantId) {
-    return NextResponse.json(
-      { error: 'tenant_id is required' },
-      { status: 400 },
-    );
-  }
-
+export async function GET() {
   try {
     const { data, error } = await supabase
-      .from('messages')
+      .from("messages")
       .select(
-        'id, tenant_id, connection_id, direction, category, to_number, from_number, status, body_text, created_at',
+        "id, tenant_id, direction, to_number, from_number, body_text, status, created_at"
       )
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
-      .limit(200);
+      .order("created_at", { ascending: false })
+      .limit(500); // last 500 messages
 
     if (error) {
-      console.error('Error loading messages (admin API):', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Failed to load messages:", error);
+      return NextResponse.json(
+        { error: "Failed to load messages" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ messages: data ?? [] });
-  } catch (err: any) {
-    console.error('Unexpected error loading messages (admin API):', err);
+  } catch (err) {
+    console.error("Unexpected error in /api/admin/messages:", err);
     return NextResponse.json(
-      { error: err?.message ?? 'Unexpected error' },
-      { status: 500 },
+      { error: "Failed to load messages" },
+      { status: 500 }
     );
   }
 }
