@@ -67,11 +67,36 @@ export default function AdminTenantsPage() {
         throw new Error(data?.error || "Failed to update tenant status");
       }
 
-      // Refresh the list
       await loadTenants();
     } catch (err: any) {
       console.error("Update pause error:", err);
       setError(err.message || "Failed to update tenant status");
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  async function extendTrial(tenantId: string, days: number) {
+    try {
+      setActionLoadingId(tenantId);
+      setError(null);
+
+      const res = await fetch("/api/admin/tenants/extend-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, days }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to extend trial");
+      }
+
+      await loadTenants();
+    } catch (err: any) {
+      console.error("Extend trial error:", err);
+      setError(err.message || "Failed to extend trial");
     } finally {
       setActionLoadingId(null);
     }
@@ -140,9 +165,7 @@ export default function AdminTenantsPage() {
                           <span className="font-medium text-zinc-900">
                             {t.name || t.id}
                           </span>
-                          <span className="text-xs text-zinc-500">
-                            {t.id}
-                          </span>
+                          <span className="text-xs text-zinc-500">{t.id}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 align-middle text-zinc-700">
@@ -171,23 +194,34 @@ export default function AdminTenantsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 align-middle text-right">
-                        {t.is_paused ? (
+                        <div className="inline-flex items-center gap-2">
+                          {t.is_paused ? (
+                            <button
+                              onClick={() => updatePause(t.id, false)}
+                              disabled={isBusy}
+                              className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              {isBusy ? "Updating…" : "Resume"}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => updatePause(t.id, true)}
+                              disabled={isBusy}
+                              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+                            >
+                              {isBusy ? "Updating…" : "Pause"}
+                            </button>
+                          )}
+
+                          {/* Extend trial by 7 days */}
                           <button
-                            onClick={() => updatePause(t.id, false)}
+                            onClick={() => extendTrial(t.id, 7)}
                             disabled={isBusy}
-                            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-60"
                           >
-                            {isBusy ? "Updating…" : "Resume"}
+                            {isBusy ? "Working…" : "+7d"}
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => updatePause(t.id, true)}
-                            disabled={isBusy}
-                            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
-                          >
-                            {isBusy ? "Updating…" : "Pause"}
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
