@@ -11,13 +11,6 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// Build Edge Function URL from SUPABASE_URL
-function getResendFunctionUrl() {
-  const url = new URL(SUPABASE_URL);
-  const host = url.host.replace(".supabase.co", ".functions.supabase.co");
-  return `https://${host}/resend-message`;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -25,7 +18,11 @@ export async function POST(req: NextRequest) {
 
     if (!messageId) {
       return NextResponse.json(
-        { ok: false, error: "INVALID_PAYLOAD", message: "messageId is required" },
+        {
+          ok: false,
+          error: "INVALID_PAYLOAD",
+          message: "messageId is required",
+        },
         { status: 400 },
       );
     }
@@ -33,9 +30,7 @@ export async function POST(req: NextRequest) {
     // 1) Load the message we want to resend
     const { data: message, error: mErr } = await supabase
       .from("messages")
-      .select(
-        "id, tenant_id, connection_id, to_number, body_text"
-      )
+      .select("id, tenant_id, connection_id, to_number, body_text")
       .eq("id", messageId)
       .single();
 
@@ -60,40 +55,44 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) Call Supabase Edge Function "resend-message"
-    const fnUrl = getResendFunctionUrl();
-
-    const fnRes = await fetch(fnUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-secret": ADMIN_SECRET,
+    //    Using supabase.functions.invoke so it sends the Authorization header.
+    const { data: fnData, error: fnError } = await supabase.functions.invoke(
+      "resend-message",
+      {
+        body: {
+          tenant_id: message.tenant_id,
+          connection_id: message.connection_id,
+          to: message.to_number,
+          type: "text",
+          text: { body: message.body_text },
+        },
+        headers: {
+          "x-admin-secret": ADMIN_SECRET,
+        },
       },
-      body: JSON.stringify({
-        tenant_id: message.tenant_id,
-        connection_id: message.connection_id,
-        to: message.to_number,
-        type: "text",
-        text: { body: message.body_text },
-      }),
-    });
+    );
 
-    let fnJson: any = null;
-    try {
-      fnJson = await fnRes.json();
-    } catch {
-      // ignore JSON parse error – keep raw
-    }
-
-    if (!fnRes.ok || !fnJson?.ok) {
-      console.error("Edge resend-message failed:", fnRes.status, fnJson);
+    if (fnError) {
+      console.error("Edge function error:", fnError);
       return NextResponse.json(
         {
           ok: false,
-          error: fnJson?.error || "RESEND_FUNCTION_FAILED",
-          details: fnJson,
-          statusCode: fnRes.status,
+          error: "RESEND_FUNCTION_FAILED",
+          details: fnError,
         },
-        { status: fnRes.status || 502 },
+        { status: 502 },
+      );
+    }
+
+    if (!fnData?.ok) {
+      console.error("Edge resend-message returned failure:", fnData);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: fnData?.error || "RESEND_FAILED",
+          details: fnData,
+        },
+        { status: 400 },
       );
     }
 
@@ -101,7 +100,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
-        result: fnJson,
+        result: fnData,
       },
       { status: 200 },
     );
