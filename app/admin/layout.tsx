@@ -1,5 +1,6 @@
 // app/admin/layout.tsx
 import React from "react";
+import Link from "next/link";
 
 export const metadata = {
   title: "Enatalk Admin",
@@ -12,7 +13,7 @@ export default function AdminLayout({
 }) {
   return (
     <div className="min-h-screen bg-zinc-50">
-      {/* Top bar with breadcrumb + logout */}
+      {/* Top bar */}
       <header className="w-full border-b bg-white">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="text-sm text-zinc-700">
@@ -31,8 +32,38 @@ export default function AdminLayout({
         </div>
       </header>
 
-      {/* Full-width content area – pages control their own layout */}
-      <main className="w-full px-6 py-6">{children}</main>
+      {/* Main area with sidebar + page content */}
+      <div className="flex w-full">
+        {/* Sidebar */}
+        <aside className="hidden w-56 border-r bg-white px-4 py-6 text-sm text-zinc-800 md:block">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Admin
+          </h2>
+          <nav className="space-y-1">
+            <Link
+              href="/admin"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/messages"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
+              Messages
+            </Link>
+            <Link
+              href="/admin/test-whatsapp"
+              className="block rounded-md px-2 py-1 hover:bg-zinc-50"
+            >
+              Test WhatsApp
+            </Link>
+          </nav>
+        </aside>
+
+        {/* Page content */}
+        <main className="flex-1 px-6 py-6">{children}</main>
+      </div>
     </div>
   );
 }
