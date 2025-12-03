@@ -82,9 +82,7 @@ export default function AdminMessagesPage() {
         setErrorMessages(null);
 
         const res = await fetch(
-          `/api/admin/messages?tenant_id=${encodeURIComponent(
-            selectedTenantId
-          )}`
+          `/api/admin/messages?tenant_id=${encodeURIComponent(selectedTenantId)}`
         );
         if (!res.ok) {
           throw new Error(`Failed to load messages: ${res.status}`);
@@ -110,16 +108,16 @@ export default function AdminMessagesPage() {
     [tenants, selectedTenantId]
   );
 
-  // Stats for selected tenant
-  const stats = useMemo(() => {
+  // Stats for selected tenant (all messages, not filtered by search)
+  const messageStats = useMemo(() => {
     let inbound = 0;
     let outbound = 0;
     let errors = 0;
 
     for (const m of messages) {
-      if (m.direction === "inbound") inbound++;
       if (m.direction === "outbound") outbound++;
-      if ((m.status ?? "").toLowerCase() === "error") errors++;
+      if (m.direction === "inbound") inbound++;
+      if (m.status === "error") errors++;
     }
 
     return { inbound, outbound, errors };
@@ -143,9 +141,7 @@ export default function AdminMessagesPage() {
   // pagination calculations
   const totalMessages = filteredMessages.length;
   const totalPages =
-    pageSize === "all"
-      ? 1
-      : Math.max(1, Math.ceil(totalMessages / pageSize));
+    pageSize === "all" ? 1 : Math.max(1, Math.ceil(totalMessages / pageSize));
 
   const currentPage = Math.min(page, totalPages);
 
@@ -235,8 +231,7 @@ export default function AdminMessagesPage() {
           ) : (
             <ul className="space-y-1 text-xs">
               {tenants.map((t) => {
-                const active =
-                  selectedTenantId && selectedTenantId === t.id;
+                const active = selectedTenantId && selectedTenantId === t.id;
                 return (
                   <li key={t.id}>
                     <button
@@ -269,8 +264,8 @@ export default function AdminMessagesPage() {
 
         {/* Messages for selected tenant */}
         <section className="space-y-3">
-          {/* Tenant summary + stats + filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Tenant summary + filters + stats */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-zinc-900">
                 {selectedTenant?.name ?? "No tenant selected"}
@@ -283,25 +278,32 @@ export default function AdminMessagesPage() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Stats chips */}
+            <div className="flex flex-col items-end gap-2">
+              {/* Stats strip */}
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                <div className="flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-sky-700">
-                  <span>Inbound</span>
-                  <span className="font-semibold">{stats.inbound}</span>
-                </div>
-                <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                  <span>Outbound</span>
-                  <span className="font-semibold">{stats.outbound}</span>
-                </div>
-                <div className="flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-700">
-                  <span>Errors</span>
-                  <span className="font-semibold">{stats.errors}</span>
-                </div>
+                <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-700">
+                  Inbound:{" "}
+                  <span className="font-semibold">
+                    {messageStats.inbound}
+                  </span>
+                </span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                  Outbound:{" "}
+                  <span className="font-semibold">
+                    {messageStats.outbound}
+                  </span>
+                </span>
+                <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">
+                  Errors:{" "}
+                  <span className="font-semibold">
+                    {messageStats.errors}
+                  </span>
+                </span>
               </div>
 
-              {/* Page size + search */}
+              {/* Filters: page size + search */}
               <div className="flex items-center gap-2">
+                {/* Page size dropdown */}
                 <div className="flex items-center gap-1 text-[11px] text-zinc-500">
                   <span>Rows:</span>
                   <select
@@ -323,10 +325,11 @@ export default function AdminMessagesPage() {
                   </select>
                 </div>
 
+                {/* Number search */}
                 <input
                   type="text"
                   value={searchNumber}
-                  onChange={(e) => setSearchNumber(e.value)}
+                  onChange={(e) => setSearchNumber(e.target.value)}
                   placeholder="Search by number (e.g. 91...)"
                   className="w-64 rounded-full border border-zinc-200 px-3 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-400"
                 />
