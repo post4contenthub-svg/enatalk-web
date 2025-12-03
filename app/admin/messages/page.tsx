@@ -113,15 +113,14 @@ export default function AdminMessagesPage() {
   const filteredMessages = useMemo(() => {
     if (!searchNumber.trim()) return messages;
     const q = searchNumber.trim();
-    const out = messages.filter((m) => {
+    return messages.filter((m) => {
       const to = m.to_number ?? "";
       const from = m.from_number ?? "";
       return to.includes(q) || from.includes(q);
     });
-    return out;
   }, [messages, searchNumber]);
 
-  // reset to first page when filter changes
+  // reset to first page when filter/pageSize changes
   useEffect(() => {
     setPage(1);
   }, [searchNumber, pageSize]);
@@ -153,6 +152,30 @@ export default function AdminMessagesPage() {
     pageSize === "all"
       ? totalMessages
       : Math.min(currentPage * (pageSize as number), totalMessages);
+
+  // 3) Resend handler – calls existing /api/resend-message route
+  const resendMessage = async (message: Message) => {
+    try {
+      const res = await fetch("/api/resend-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: message.id }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        console.error("Resend failed:", json);
+        alert(json?.error || "Resend failed");
+        return;
+      }
+
+      alert("Message resent successfully ✅");
+    } catch (err) {
+      console.error("Resend error:", err);
+      alert("Resend request failed");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -303,6 +326,7 @@ export default function AdminMessagesPage() {
                       <th className="px-3 py-2">Body</th>
                       <th className="px-3 py-2">Status</th>
                       <th className="px-3 py-2">Created at</th>
+                      <th className="px-3 py-2">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
@@ -333,6 +357,18 @@ export default function AdminMessagesPage() {
                         </td>
                         <td className="px-3 py-2 text-[11px] text-zinc-500">
                           {new Date(m.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-[11px]">
+                          {m.direction === "outbound" ? (
+                            <button
+                              onClick={() => resendMessage(m)}
+                              className="rounded-full bg-black px-3 py-1 text-[10px] text-white hover:bg-zinc-800"
+                            >
+                              Resend
+                            </button>
+                          ) : (
+                            <span className="text-zinc-400">—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
