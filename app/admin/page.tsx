@@ -1,5 +1,5 @@
 "use client";
-
+import { TrialStatusBadge } from "./tenants/TrialStatusBadge";
 import { useEffect, useMemo, useState } from "react";
 
 type Tenant = {
@@ -9,6 +9,7 @@ type Tenant = {
   plan_code?: string | null;
   billing_status?: string | null;
   trial_end_at?: string | null;
+  trial_expiry_notified_at?: string | null; // 👈 added
   is_paused: boolean;
   created_at?: string | null;
   outbound_count?: number;
@@ -298,6 +299,7 @@ export default function AdminTenantsPage() {
                   <th className="px-4 py-3 text-center">Outbound</th>
                   <th className="px-4 py-3 text-center">Inbound</th>
                   <th className="px-4 py-3">Last message</th>
+                  <th className="px-4 py-3">Trial</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -354,6 +356,12 @@ export default function AdminTenantsPage() {
                       <td className="px-4 py-3 align-middle text-zinc-700">
                         {lastMsgLabel}
                       </td>
+
+                      {/* Trial badge */}
+                      <td className="px-4 py-3 align-middle">
+                        <TrialStatusBadge tenant={t} />
+                      </td>
+
                       <td className="px-4 py-3 align-middle">
                         {t.is_paused ? (
                           <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
