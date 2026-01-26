@@ -1,7 +1,4 @@
-export type SendWhatsappPayload = {
-  to: string; // E.164 without +
-  body: string;
-};
+// lib/whatsapp.ts
 
 export type SendWhatsappResult = {
   success: boolean;
@@ -10,30 +7,86 @@ export type SendWhatsappResult = {
   raw?: any;
 };
 
-export async function sendWhatsappMessage(
-  payload: SendWhatsappPayload
-): Promise<SendWhatsappResult> {
-  const res = await fetch('/api/resend-message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      to: payload.to,
-      type: 'text',
-      text: { body: payload.body },
-    }),
-  });
+/* ============================================================
+   TEXT MESSAGE (ONLY WORKS IF USER REPLIED < 24 HOURS)
+============================================================ */
 
-  let json: any = null;
-  try {
-    json = await res.json();
-  } catch {
-    // ignore
-  }
+export async function sendWhatsappMessage({
+  to,
+  body,
+}: {
+  to: string; // E.164 without +
+  body: string;
+}): Promise<SendWhatsappResult> {
+  const res = await fetch(
+    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body },
+      }),
+    }
+  );
+
+  const json = await res.json();
 
   return {
-    success: res.ok && json?.success === true,
+    success: res.ok,
     status: res.status,
-    messageId: json?.message_id ?? null,
+    messageId: json?.messages?.[0]?.id ?? null,
+    raw: json,
+  };
+}
+
+/* ============================================================
+   TEMPLATE MESSAGE (ALWAYS ALLOWED – FIRST / PROMO MESSAGE)
+============================================================ */
+
+export async function sendWhatsAppTemplate({
+  to,
+  templateName,
+  language = "en",
+  components = [],
+}: {
+  to: string;
+  templateName: string;
+  language?: string;
+  components?: any[];
+}): Promise<SendWhatsappResult> {
+  const res = await fetch(
+    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: language },
+          components,
+        },
+      }),
+    }
+  );
+
+  const json = await res.json();
+
+  return {
+    success: res.ok,
+    status: res.status,
+    messageId: json?.messages?.[0]?.id ?? null,
     raw: json,
   };
 }

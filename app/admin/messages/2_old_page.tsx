@@ -1,9 +1,8 @@
-// app/admin/messages/MessagesClient.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-export type Message = {
+type Message = {
   id: string;
   tenant_id?: string | null;
   direction: "inbound" | "outbound";
@@ -14,22 +13,44 @@ export type Message = {
   created_at: string;
 };
 
-export default function MessagesClient({
-  initialMessages,
-}: {
-  initialMessages: Message[];
-}) {
+export default function AdminMessagesPage() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchNumber, setSearchNumber] = useState("");
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/admin/messages");
+        if (!res.ok) {
+          throw new Error(`Failed to load messages: ${res.status}`);
+        }
+        const json = await res.json();
+        // Adjust depending on your API shape: { messages: [...] } or just [...]
+        const msgs: Message[] = Array.isArray(json) ? json : json.messages ?? [];
+        setMessages(msgs);
+      } catch (err: any) {
+        console.error("Failed to load messages", err);
+        setError("Failed to load messages");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
   const filteredMessages = useMemo(() => {
-    if (!searchNumber.trim()) return initialMessages;
+    if (!searchNumber.trim()) return messages;
     const q = searchNumber.trim();
-    return initialMessages.filter((m) => {
+    return messages.filter((m) => {
       const to = m.to_number ?? "";
       const from = m.from_number ?? "";
       return to.includes(q) || from.includes(q);
     });
-  }, [initialMessages, searchNumber]);
+  }, [messages, searchNumber]);
 
   return (
     <div className="space-y-4">
@@ -53,7 +74,15 @@ export default function MessagesClient({
         </div>
       </div>
 
-      {filteredMessages.length === 0 ? (
+      {loading ? (
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-500">
+          Loading messages…
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : filteredMessages.length === 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-500">
           {searchNumber
             ? "No messages found for this number."
