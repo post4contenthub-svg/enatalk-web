@@ -1,10 +1,10 @@
 "use client";
 
-export type FiltersBarProps = {
+export function ContactsSearchBar({
+  onSearchChange,
+}: {
   onSearchChange: (value: string) => void;
-};
-
-export function FiltersBar({ onSearchChange }: FiltersBarProps) {
+}) {
   return (
     <input
       type="text"

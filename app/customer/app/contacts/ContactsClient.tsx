@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import FiltersBar from "./FiltersBar";
+import { ContactsSearchBar } from "./ContactsSearchBar";
 
 type ContactRow = {
   id: string;
@@ -154,7 +154,7 @@ export default function ContactsClient({
     <div className="relative">
       {/* Top bar */}
       <div className="flex justify-between items-center mb-4">
-        <FiltersBar onSearchChange={setSearch} />
+        <ContactsSearchBar onSearchChange={setSearch} />
         <button
           onClick={openAdd}
           className="px-4 py-2 bg-green-600 text-white rounded"

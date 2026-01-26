@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import NewTemplateModal from "./NewTemplateModal";
 import TemplateActions from "./TemplateActions";
+import TemplatesClient from "./TemplatesClient";
 
 const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
 
@@ -23,7 +24,7 @@ export default async function TemplatesPage() {
             View and manage your WhatsApp message templates.
           </p>
         </div>
-        <NewTemplateModal tenantId={TENANT_ID} />
+        <TemplatesClient tenantId={TENANT_ID} />
       </div>
 
       {/* Table */}

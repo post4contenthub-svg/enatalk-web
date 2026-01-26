@@ -3,13 +3,13 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const templateId = params.id;
+  const { id: templateId } = await context.params;
 
   if (!templateId) {
     return NextResponse.json(
-      { error: "Missing template id" },
+      { error: "MISSING_TEMPLATE_ID" },
       { status: 400 }
     );
   }

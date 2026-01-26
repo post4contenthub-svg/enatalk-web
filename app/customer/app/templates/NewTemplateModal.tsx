@@ -4,8 +4,10 @@ import { useState } from "react";
 
 export default function NewTemplateModal({
   tenantId,
+  onClose,
 }: {
   tenantId: string;
+  onClose: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import ContactsClient from "./ContactsClient";
+import ContactsPageClient from "./ContactsPageClient";
 import ImportCsvButton from "./ImportCsvButton";
 
 const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
@@ -62,15 +62,13 @@ export default async function ContactsPage() {
 
   const templates: TemplateRow[] = (templatesRaw ?? []) as any;
 
-  return (
-    <ContactsClient
-      tenantId={TENANT_ID}
-      initialRows={rows}
-      fieldDefs={customFields}
-      templates={templates}
-      contactsError={!!contactsError}
-      fieldDefsError={!!fieldDefsError}
-      templatesError={!!templatesError}
-    />
-  );
+  <ContactsPageClient
+  tenantId={TENANT_ID}
+  initialContacts={rows}
+  customFields={customFields}
+  templates={templates}
+  hasContactsError={!!contactsError}
+  hasFieldDefsError={!!fieldDefsError}
+  hasTemplatesError={!!templatesError}
+/>
 }

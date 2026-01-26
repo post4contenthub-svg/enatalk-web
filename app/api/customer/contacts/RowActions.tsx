@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SendWhatsAppButton } from "./SendWhatsAppButton";
-import { SendTemplateButton } from "./SendTemplateButton";
 
 type FieldDef = {
   key: string;
@@ -33,9 +31,8 @@ export default function RowActions({
   async function handleEdit() {
     if (busy) return;
 
-    // Simple prompt-based editing for now
     const newPhone = window.prompt("Edit phone:", contact.phone);
-    if (newPhone === null) return; // cancel
+    if (newPhone === null) return;
 
     const newName = window.prompt("Edit name:", contact.name || "") ?? "";
     if (newName === null) return;
@@ -52,7 +49,6 @@ export default function RowActions({
       .map((t) => t.trim())
       .filter(Boolean);
 
-    // Edit dynamic custom fields
     const newCustom: Record<string, any> = {
       ...(contact.custom_fields || {}),
     };
@@ -63,10 +59,7 @@ export default function RowActions({
         `Edit ${def.label}:`,
         current != null ? String(current) : ""
       );
-      if (value === null) {
-        // if user cancels on any field, abort whole edit
-        return;
-      }
+      if (value === null) return;
       newCustom[def.key] = value;
     }
 
@@ -89,7 +82,6 @@ export default function RowActions({
       const json = await res.json();
 
       if (!res.ok) {
-        console.error("Edit contact error:", json);
         alert(json.error || "Failed to update contact");
         return;
       }
@@ -97,7 +89,6 @@ export default function RowActions({
       alert("Contact updated ✅");
       window.location.reload();
     } catch (err: any) {
-      console.error(err);
       alert(err?.message || "Unexpected error");
     } finally {
       setBusy(false);
@@ -126,7 +117,6 @@ export default function RowActions({
       const json = await res.json();
 
       if (!res.ok) {
-        console.error("Delete contact error:", json);
         alert(json.error || "Failed to delete contact");
         return;
       }
@@ -134,29 +124,14 @@ export default function RowActions({
       alert("Contact deleted ✅");
       window.location.reload();
     } catch (err: any) {
-      console.error(err);
       alert(err?.message || "Unexpected error");
     } finally {
       setBusy(false);
     }
   }
 
-  const hasPhone = !!contact.phone && contact.phone.trim().length > 0;
-
   return (
     <div className="flex flex-wrap gap-1">
-      {/* existing send buttons (only if subscribed & has phone) */}
-      {!contact.is_opted_out && hasPhone && (
-        <>
-          <SendWhatsAppButton phone={contact.phone} tenantId={tenantId} />
-          <SendTemplateButton
-            phone={contact.phone}
-            tenantId={tenantId}
-          />
-        </>
-      )}
-
-      {/* Edit / Delete controls */}
       <button
         type="button"
         onClick={handleEdit}

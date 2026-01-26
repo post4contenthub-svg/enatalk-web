@@ -5,8 +5,7 @@ import { useMemo, useState } from "react";
 import NewContactButton from "./NewContactButton";
 import { PreferredTemplateDropdown } from "./PreferredTemplateDropdown";
 import RowActions from "./RowActions";
-import FiltersBar from "./FiltersBar";
-
+import { ContactsFiltersBar } from "./ContactsFiltersBar";
 type ContactRow = {
   id: string;
   name: string | null;
@@ -149,19 +148,19 @@ export default function ContactsPageClient({
       </div>
 
       {/* Filters bar */}
-      <FiltersBar
-        availableTemplates={templates}
-        customFields={customFields}
-        tag={tag}
-        templateId={templateId}
-        fieldKey={fieldKey}
-        fieldValue={fieldValue}
-        onChangeTag={setTag}
-        onChangeTemplateId={setTemplateId}
-        onChangeFieldKey={setFieldKey}
-        onChangeFieldValue={setFieldValue}
-        onClear={handleClearFilters}
-      />
+      <ContactsFiltersBar
+availableTemplates={templates}
+customFields={customFields}
+tag={tag}
+templateId={templateId}
+fieldKey={fieldKey}
+fieldValue={fieldValue}
+onChangeTag={setTag}
+onChangeTemplateId={setTemplateId}
+onChangeFieldKey={setFieldKey}
+onChangeFieldValue={setFieldValue}
+onClear={handleClearFilters}
+/>
 
       {/* Summary for FILTERED list */}
       <div className="flex flex-wrap gap-3 text-xs">
