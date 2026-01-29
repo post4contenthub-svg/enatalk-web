@@ -10,9 +10,9 @@ export default function CustomerAppLayout({
   children: React.ReactNode;
 }) {
   const [workspace, setWorkspace] = useState<any>(null);
-  const [status, setStatus] = useState<
-    "checking" | "unauthenticated" | "ready"
-  >("checking");
+  const [status, setStatus] = useState<"checking" | "unauthenticated" | "ready">(
+    "checking"
+  );
 
   useEffect(() => {
     const supabase = createClient(
@@ -20,39 +20,39 @@ export default function CustomerAppLayout({
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) {
-        setStatus("unauthenticated");
-        return;
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session) {
+          setStatus("unauthenticated");
+          return;
+        }
+
+        const { data: workspace } = await supabase
+          .from("workspaces")
+          .select("*")
+          .eq("owner_id", session.user.id)
+          .single();
+
+        setWorkspace(workspace);
+        setStatus("ready");
       }
+    );
 
-      const { data: workspace } = await supabase
-        .from("workspaces")
-        .select("*")
-        .eq("owner_id", data.session.user.id)
-        .single();
-
-      setWorkspace(workspace);
-      setStatus("ready");
-    });
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  // ⏳ Loading
   if (status === "checking") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-300">
-        Loading dashboard…
+        Loading…
       </div>
     );
   }
 
-  // 🔐 Redirect ONCE (no blinking)
   if (status === "unauthenticated") {
-    window.location.replace("/auth");
-    return null;
+window.location.replace("https://enatalk.com/enatalk-auth?mode=login");    return null;
   }
 
-  // ✅ Logged in
   return (
     <CustomerAppShell workspace={workspace}>
       {children}
