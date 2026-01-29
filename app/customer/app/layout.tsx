@@ -4,11 +4,6 @@ import React, { useEffect, useState } from "react";
 import CustomerAppShell from "./CustomerAppShell";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function CustomerAppLayout({
   children,
 }: {
@@ -18,23 +13,33 @@ export default function CustomerAppLayout({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
     async function load() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // Not logged in → redirect
+      // ❌ Not logged in → redirect to auth app
       if (!session) {
-       window.location.href = "https://enatalk.com/enatalk-auth?mode=login";
+        window.location.href =
+          "https://enatalk.com/enatalk-auth?mode=login";
         return;
       }
 
-      // Load workspace
-      const { data: workspace } = await supabase
+      // ✅ Load workspace
+      const { data: workspace, error } = await supabase
         .from("workspaces")
         .select("*")
         .eq("owner_id", session.user.id)
         .single();
+
+      if (error) {
+        console.error("Workspace load failed", error);
+      }
 
       setWorkspace(workspace);
       setLoading(false);
@@ -44,7 +49,11 @@ export default function CustomerAppLayout({
   }, []);
 
   if (loading) {
-    return <div>Loading dashboard...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-900 text-slate-200">
+        Loading dashboard…
+      </div>
+    );
   }
 
   return (
