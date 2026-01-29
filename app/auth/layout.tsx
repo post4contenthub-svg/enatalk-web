@@ -1,5 +1,3 @@
-import "../globals.css";
-
 export default function AuthLayout({
   children,
 }: {
@@ -7,7 +5,7 @@ export default function AuthLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="m-0 p-0">{children}</body>
     </html>
   );
 }
