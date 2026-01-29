@@ -1,5 +1,4 @@
-import CustomerLayout from "@/components/customer/CustomerLayout";
-
+import CustomerLayout from "./CustomerLayout";
 export default function Layout({
   children,
 }: {
