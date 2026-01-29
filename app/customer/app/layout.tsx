@@ -55,12 +55,9 @@ export default function CustomerAppLayout({
 
   // ❌ Definitely not logged in → redirect ONCE
   if (status === "unauthenticated") {
-    window.location.replace(
-      "https://enatalk.com/enatalk-auth?mode=login"
-    );
-    return null;
-  }
-
+  window.location.replace("/auth");
+  return null;
+}
   // ✅ Logged in → render app
   return (
     <CustomerAppShell workspace={workspace}>
