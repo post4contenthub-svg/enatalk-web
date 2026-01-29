@@ -1,61 +1,88 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 /** TEMP — replace later with real tenant lookup */
 const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
 
-export default async function OverviewPage() {
-  // 📊 Total contacts
-  const { count: totalContacts } = await supabaseAdmin
-    .from("contacts")
-    .select("*", { count: "exact", head: true })
-    .eq("tenant_id", TENANT_ID);
+export default function OverviewPage() {
+  const [loading, setLoading] = useState(true);
 
-  // 📈 Messages sent today
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+  const [totalContacts, setTotalContacts] = useState(0);
+  const [messagesToday, setMessagesToday] = useState(0);
+  const [tenant, setTenant] = useState<any>(null);
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
 
-  const { count: messagesToday } = await supabaseAdmin
-    .from("messages")
-    .select("*", { count: "exact", head: true })
-    .eq("tenant_id", TENANT_ID)
-    .eq("direction", "outbound")
-    .gte("created_at", start.toISOString());
+  useEffect(() => {
+    async function load() {
+      // 📊 Total contacts
+      const { count: contactsCount } = await supabase
+        .from("contacts")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", TENANT_ID);
 
-  // ⚠️ Tenant / trial info
-  const { data: tenant } = await supabaseAdmin
-    .from("tenants")
-    .select("name, plan_code, billing_status, trial_end_at")
-    .eq("id", TENANT_ID)
-    .single();
+      // 📈 Messages sent today
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+
+      const { count: todayCount } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", TENANT_ID)
+        .eq("direction", "outbound")
+        .gte("created_at", start.toISOString());
+
+      // ⚠️ Tenant info
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name, plan_code, billing_status, trial_end_at")
+        .eq("id", TENANT_ID)
+        .single();
+
+      // 💬 Recent messages
+      const { data: recentMessages } = await supabase
+        .from("messages")
+        .select("id, to_number, body_text, status, created_at")
+        .eq("tenant_id", TENANT_ID)
+        .eq("direction", "outbound")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setTotalContacts(contactsCount ?? 0);
+      setMessagesToday(todayCount ?? 0);
+      setTenant(tenant);
+      setRecentMessages(recentMessages ?? []);
+      setLoading(false);
+    }
+
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-300">
+        Loading dashboard…
+      </div>
+    );
+  }
 
   const isTrial = tenant?.billing_status === "trialing";
-
-  // 🔍 Recent contacts (search preview)
-  const { data: contacts } = await supabaseAdmin
-    .from("contacts")
-    .select("id, name, phone")
-    .eq("tenant_id", TENANT_ID)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  // 💬 Recent messages
-  const { data: recentMessages } = await supabaseAdmin
-    .from("messages")
-    .select("id, to_number, body_text, status, created_at")
-    .eq("tenant_id", TENANT_ID)
-    .eq("direction", "outbound")
-    .order("created_at", { ascending: false })
-    .limit(5);
 
   return (
     <div className="space-y-6">
       {/* Trial banner */}
-      {isTrial && (
+      {isTrial && tenant?.trial_end_at && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
           ⏳ Trial active — ends on{" "}
           <b>
-            {new Date(tenant?.trial_end_at!).toLocaleDateString("en-IN", {
+            {new Date(tenant.trial_end_at).toLocaleDateString("en-IN", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -69,7 +96,7 @@ export default async function OverviewPage() {
         <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
           <p className="text-xs text-slate-400">Total contacts</p>
           <p className="mt-1 text-2xl font-semibold text-white">
-            {totalContacts ?? 0}
+            {totalContacts}
           </p>
           <Link
             href="/customer/app/contacts"
@@ -82,7 +109,7 @@ export default async function OverviewPage() {
         <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
           <p className="text-xs text-slate-400">Messages sent today</p>
           <p className="mt-1 text-2xl font-semibold text-white">
-            {messagesToday ?? 0}
+            {messagesToday}
           </p>
         </div>
 
@@ -94,17 +121,6 @@ export default async function OverviewPage() {
           <p className="text-xs text-slate-500">
             Workspace: {tenant?.name}
           </p>
-
-          {tenant?.trial_end_at && (
-            <p className="mt-1 text-xs text-amber-400">
-              Expires on{" "}
-              {new Date(tenant.trial_end_at).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
-          )}
         </div>
       </div>
 
@@ -126,20 +142,17 @@ export default async function OverviewPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-800">
-              {recentMessages?.map((m) => (
+              {recentMessages.map((m) => (
                 <tr key={m.id} className="hover:bg-slate-800">
                   <td className="px-3 py-2 text-slate-200">
                     {m.to_number}
                   </td>
-
                   <td className="px-3 py-2 text-slate-300 max-w-xs truncate">
                     {m.body_text}
                   </td>
-
                   <td className="px-3 py-2 text-xs text-slate-400">
                     {new Date(m.created_at).toLocaleString("en-IN")}
                   </td>
-
                   <td className="px-3 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -154,7 +167,7 @@ export default async function OverviewPage() {
                 </tr>
               ))}
 
-              {!recentMessages?.length && (
+              {!recentMessages.length && (
                 <tr>
                   <td
                     colSpan={4}
