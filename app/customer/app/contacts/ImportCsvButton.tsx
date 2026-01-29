@@ -80,14 +80,14 @@ export default function ImportCsvButton({ tenantId, fieldDefs }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-700"
       >
         Import from CSV
       </button>
 
       {/* Simple modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="w-full max-w-lg rounded-xl bg-white p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Import contacts from CSV</h2>
@@ -104,15 +104,15 @@ export default function ImportCsvButton({ tenantId, fieldDefs }: Props) {
               <div className="space-y-1">
                 <label className="font-medium">CSV file</label>
                 <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    setFile(f);
-                    // Optional: debug
-                    console.log("Selected CSV file:", f?.name);
-                  }}
-                />
+  type="file"
+  accept=".csv,text/csv"
+  className="block w-full cursor-pointer rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 file:mr-2 file:rounded file:border-0 file:bg-slate-800 file:px-3 file:py-1 file:text-white hover:file:bg-slate-900"
+  onChange={(e) => {
+    const f = e.target.files?.[0] ?? null;
+    console.log("Selected CSV:", f);
+    setFile(f);
+  }}
+/>
                 <p className="text-[11px] text-slate-500">
                   Make sure your CSV has a <code>phone</code> column. Optional
                   columns: <code>name</code> and any custom field keys shown

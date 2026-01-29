@@ -19,17 +19,23 @@ function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-white">
-      <div className="flex h-16 items-center gap-2 border-b px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-sm font-bold text-white">
+    <aside className="flex h-screen w-64 flex-col border-r border-[var(--app-border)] bg-[var(--app-card)]">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-2 border-b border-[var(--app-border)] px-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--app-accent-blue)] text-sm font-bold text-white">
           E
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold">EnaTalk</span>
-          <span className="text-xs text-muted-foreground">Customer Portal</span>
+          <span className="text-sm font-semibold text-[var(--app-text)]">
+            EnaTalk
+          </span>
+          <span className="text-xs text-[var(--app-text-muted)]">
+            Customer Portal
+          </span>
         </div>
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 space-y-1 p-3">
         {navItems.map((item) => {
           const active =
@@ -43,8 +49,8 @@ function Sidebar() {
               className={[
                 "flex items-center rounded-lg px-3 py-2 text-sm transition",
                 active
-                  ? "bg-emerald-50 text-emerald-700 font-medium"
-                  : "text-slate-600 hover:bg-slate-50",
+                  ? "bg-white/10 text-[var(--app-accent-yellow)] font-medium"
+                  : "text-[var(--app-text-muted)] hover:bg-white/5",
               ].join(" ")}
             >
               {item.label}
@@ -53,12 +59,13 @@ function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t p-3 text-xs text-slate-500">
+      {/* Footer */}
+      <div className="border-t border-[var(--app-border)] p-3 text-xs text-[var(--app-text-muted)]">
         <div className="flex items-center justify-between">
           <span>Trial: 7 days left</span>
         </div>
-        <div className="mt-2 h-1.5 rounded-full bg-slate-200">
-          <div className="h-1.5 w-1/3 rounded-full bg-emerald-500" />
+        <div className="mt-2 h-1.5 rounded-full bg-white/10">
+          <div className="h-1.5 w-1/3 rounded-full bg-[var(--app-accent-blue)]" />
         </div>
         <div className="mt-1 flex justify-between text-[10px]">
           <span>230 / 1000 msgs</span>
@@ -71,21 +78,23 @@ function Sidebar() {
 
 function Topbar() {
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-6">
+    <header className="flex h-16 items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-card)] px-6">
       <div className="flex flex-col">
-        <span className="text-sm font-semibold">Demo Workspace</span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm font-semibold text-[var(--app-accent-yellow)]">
+          Demo Workspace
+        </span>
+        <span className="text-xs text-[var(--app-text-muted)]">
           WhatsApp marketing made simple
         </span>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-[var(--app-accent-yellow)]">
+          <span className="h-2 w-2 rounded-full bg-[var(--app-accent-blue)]" />
           Trial – 7 days left
         </div>
 
-        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold">
+        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-[var(--app-text)]">
           CU
         </button>
       </div>
@@ -95,15 +104,20 @@ function Topbar() {
 
 export default function CustomerAppShell({
   children,
+  workspace,
 }: {
   children: React.ReactNode;
-}) {
+  workspace: any;
+}) 
+ {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

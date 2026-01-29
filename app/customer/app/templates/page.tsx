@@ -1,95 +1,102 @@
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import NewTemplateModal from "./NewTemplateModal";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import NewTemplateButton from "./NewTemplateButton";
 import TemplateActions from "./TemplateActions";
-import TemplatesClient from "./TemplatesClient";
-
-const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
 
 export default async function TemplatesPage() {
-  const { data } = await supabaseAdmin
+  const supabase = createSupabaseServerClient();
+
+  // 🔹 Get tenantId (adjust only if your app uses a different source)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const tenantId = user?.user_metadata?.tenant_id;
+
+  // 🔹 Fetch templates
+  const { data: templates, error } = await supabase
     .from("templates")
-    .select("id, name, category, language, body_text, is_active, created_at")
-    .eq("tenant_id", TENANT_ID)
+    .select("*")
     .order("created_at", { ascending: false });
 
-  const rows = data ?? [];
+  if (error) {
+    return (
+      <div className="p-6 text-red-400">
+        {error.message}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4" style={{ padding: "24px" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Templates</h1>
-          <p className="text-sm text-slate-500">
-            View and manage your WhatsApp message templates.
-          </p>
+    <div className="px-8 py-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-white">
+            Templates
+          </h1>
+
+          {/* ✅ YOUR EXISTING MODAL BUTTON */}
+          {tenantId && <NewTemplateButton tenantId={tenantId} />}
         </div>
-        <TemplatesClient tenantId={TENANT_ID} />
-      </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-            <tr>
-              <th className="px-4 py-3">NAME</th>
-              <th className="px-4 py-3">CATEGORY</th>
-              <th className="px-4 py-3">MESSAGE BODY</th>
-              <th className="px-4 py-3 text-center">STATUS</th>
-              <th className="px-4 py-3 text-right">ACTIONS</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((tpl) => (
-              <tr
-                key={tpl.id}
-                className="hover:bg-slate-50/50 transition-colors"
-              >
-                {/* Name */}
-                <td className="px-4 py-4 font-medium text-slate-900">
-                  {tpl.name}
-                </td>
-
-                {/* Category */}
-                <td className="px-4 py-4 text-slate-600 capitalize">
-                  {tpl.category}
-                </td>
-
-                {/* Message Body */}
-                <td className="px-4 py-4 text-slate-500">
-                  <div
-                    className="max-w-xs truncate"
-                    title={tpl.body_text}
-                  >
-                    {tpl.body_text}
-                  </div>
-                </td>
-
-                {/* Status */}
-                <td className="px-4 py-4 text-center">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700 uppercase tracking-wider border border-emerald-100">
-                    Active
-                  </span>
-                </td>
-
-                {/* Actions */}
-                <td className="px-4 py-4 text-right">
-                  <TemplateActions
-                    templateId={tpl.id}
-                    initialBody={tpl.body_text}
-                  />
-                </td>
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800 text-slate-300">
+              <tr>
+                <th className="px-4 py-3 text-left">Name</th>
+                <th className="px-4 py-3 text-left">Category</th>
+                <th className="px-4 py-3 text-left">Message Body</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
 
-        {rows.length === 0 && (
-          <div className="py-12 text-center text-slate-400">
-            No templates found. Create your first one above!
-          </div>
-        )}
+            <tbody className="divide-y divide-slate-800">
+              {templates?.map((t) => (
+                <tr
+                  key={t.id}
+                  className="hover:bg-slate-800 align-top"
+                >
+                  <td className="px-4 py-3 font-medium text-white">
+                    {t.name}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-300">
+                    {t.category}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-400 whitespace-pre-wrap max-w-xl">
+  {t.body_text}
+</td>
+
+                  <td className="px-4 py-3 text-slate-300">
+                    {t.status}
+                  </td>
+
+                  {/* ✅ INLINE EDIT — NO ROUTING */}
+                  <td className="px-4 py-3">
+                    <TemplateActions
+                      templateId={t.id}
+                      initialBody={t.body}
+                    />
+                  </td>
+                </tr>
+              ))}
+
+              {templates?.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-6 text-center text-slate-400"
+                  >
+                    No templates found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

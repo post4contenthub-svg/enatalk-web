@@ -1,72 +1,97 @@
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import ContactsClient from "./ContactsClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+import RowActions from "./RowActions";
 import ImportCsvButton from "./ImportCsvButton";
-
-const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
-
-/**
- * Contacts are DATA ONLY.
- * No templates, no messaging logic.
- * CRM-ready.
- */
-type ContactRow = {
-  id: string;
-  name: string | null;
-  phone: string;
-  tags: string[] | null;
-  is_opted_out: boolean;
-  last_message_at: string | null;
-  created_at: string;
-  custom_fields: Record<string, any> | null;
-};
-
-type FieldDef = {
-  key: string;
-  label: string;
-  show_in_table: boolean;
-  sort_order: number;
-  type?: string;
-};
+import NewContactButton from "./NewContactButton";
 
 export default async function ContactsPage() {
-  /**
-   * 1) Load contacts
-   * NOTE: No template fields here.
-   */
-  const { data: contacts, error: contactsError } = await supabaseAdmin
+  const supabase = createSupabaseServerClient();
+
+  // 🔹 Fetch contacts
+  const { data: contacts, error } = await supabase
     .from("contacts")
-    .select(
-      "id, name, phone, tags, is_opted_out, last_message_at, created_at, custom_fields"
-    )
-    .eq("tenant_id", TENANT_ID)
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  const rows: ContactRow[] = (contacts ?? []) as any;
+  if (error) {
+    return <div className="p-6 text-red-400">{error.message}</div>;
+  }
 
-  /**
-   * 2) Load custom field definitions
-   */
-  const { data: fieldDefsRaw, error: fieldDefsError } = await supabaseAdmin
-    .from("contact_field_definitions")
-    .select("key, label, show_in_table, sort_order, type")
-    .eq("tenant_id", TENANT_ID)
-    .eq("show_in_table", true)
-    .order("sort_order", { ascending: true });
+  // 🔹 Fetch tenant (adjust if you already have this elsewhere)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const customFields: FieldDef[] = (fieldDefsRaw ?? []) as any;
+  const tenantId = user?.id ?? "";
 
-  /**
-   * 3) Render client component
-   * NOTE: No templates passed anymore.
-   */
+  // 🔹 Field definitions (custom fields used by edit/import)
+  const fieldDefs = [
+    { key: "city", label: "City" },
+    { key: "order_id", label: "Order ID" },
+    { key: "bike_number", label: "Bike Number" },
+    { key: "bike_make", label: "Bike Make" },
+    { key: "bike_model", label: "Bike Model" },
+  ];
+
   return (
-    <ContactsClient
-      tenantId={TENANT_ID}
-      initialRows={rows}
-      fieldDefs={customFields}
-      contactsError={!!contactsError}
-      fieldDefsError={!!fieldDefsError}
-    />
+    <div className="px-8 py-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-white">Contacts</h1>
+
+          <div className="flex gap-2">
+            <ImportCsvButton tenantId={tenantId} fieldDefs={fieldDefs} />
+            <NewContactButton tenantId={tenantId} fieldDefs={fieldDefs} />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800 text-slate-300">
+              <tr>
+                <th className="px-4 py-3 text-left">Name</th>
+                <th className="px-4 py-3 text-left">Phone</th>
+                <th className="px-4 py-3 text-left">City</th>
+                <th className="px-4 py-3 text-left">Order ID</th>
+                <th className="px-4 py-3 text-left">Bike Number</th>
+                <th className="px-4 py-3 text-left">Bike Make</th>
+                <th className="px-4 py-3 text-left">Bike Model</th>
+                <th className="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-800">
+              {contacts?.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-800">
+                  <td className="px-4 py-3 text-white">{c.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-300">{c.phone}</td>
+                  <td className="px-4 py-3 text-slate-300">{c.city ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-300">{c.order_id ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-300">
+                    {c.bike_number ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">
+                    {c.bike_make ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-300">
+                    {c.bike_model ?? "—"}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <RowActions
+                      contact={c}
+                      tenantId={tenantId}
+                      fieldDefs={fieldDefs}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }
