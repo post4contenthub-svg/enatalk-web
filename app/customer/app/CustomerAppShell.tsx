@@ -3,6 +3,12 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const base = "/customer/app";
 
@@ -77,6 +83,13 @@ function Sidebar() {
 }
 
 function Topbar() {
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.replace(
+      "https://enatalk.com/enatalk-auth?mode=login"
+    );
+  }
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-card)] px-6">
       <div className="flex flex-col">
@@ -88,15 +101,22 @@ function Topbar() {
         </span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-[var(--app-accent-yellow)]">
           <span className="h-2 w-2 rounded-full bg-[var(--app-accent-blue)]" />
           Trial – 7 days left
         </div>
 
-        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-[var(--app-text)]">
-          CU
+        <button
+          onClick={logout}
+          className="rounded-md border border-white/10 px-3 py-1 text-xs text-[var(--app-text)] hover:bg-white/10"
+        >
+          Logout
         </button>
+
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-[var(--app-text)]">
+          CU
+        </div>
       </div>
     </header>
   );
@@ -108,16 +128,13 @@ export default function CustomerAppShell({
 }: {
   children: React.ReactNode;
   workspace: any;
-}) 
- {
+}) {
   return (
     <div className="flex min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
