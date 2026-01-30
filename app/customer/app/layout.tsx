@@ -7,5 +7,14 @@ export default function CustomerAppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <CustomerAppShell>{children}</CustomerAppShell>;
+  // TEMP: dummy workspace until auth is restored
+  const workspace = {
+    name: "EnaTalk",
+  };
+
+  return (
+    <CustomerAppShell workspace={workspace}>
+      {children}
+    </CustomerAppShell>
+  );
 }
