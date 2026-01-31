@@ -52,11 +52,21 @@ export default function CustomerAppLayout({
   }
 
   if (status === "unauthenticated") {
-    window.location.replace(
-      "https://enatalk.com/enatalk-auth?mode=login"
-    );
-    return null;
-  }
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <div className="text-center">
+        <p className="mb-4">You are not logged in.</p>
+        <a
+          href="https://enatalk.com/enatalk-auth?mode=login"
+          className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium"
+        >
+          Go to Login
+        </a>
+      </div>
+    </div>
+  );
+}
+
 
   return (
     <CustomerAppShell workspace={workspace}>
