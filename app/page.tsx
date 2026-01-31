@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
-
 export default function Home() {
-  redirect("/customer/app");
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <h1 className="text-xl font-semibold">
+        Admin Panel
+      </h1>
+    </div>
+  );
 }

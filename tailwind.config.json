@@ -1,11 +1,20 @@
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
+{
+  "content": [
     "./app/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}"
   ],
-  theme: {
-    extend: {},
+  "theme": {
+    "extend": {
+      colors: {
+        appBg: "var(--app-bg)",
+        appCard: "var(--app-card)",
+        appBorder: "var(--app-border)",
+        appText: "var(--app-text)",
+        appMuted: "var(--app-text-muted)",
+        accentYellow: "var(--app-accent-yellow)",
+        accentBlue: "var(--app-accent-blue)"
+      }
+    }
   },
-  plugins: [],
-};
+  "plugins": []
+}
