@@ -1,15 +1,31 @@
 "use client";
 
-import { getBrowserSupabaseClient } from "@/lib/supabase/client";
+import { useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function LoginPage() {
-  const supabase = getBrowserSupabaseClient();
+  const router = useRouter();
+
+  // 🔑 IMPORTANT: handle OAuth redirect
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.replace("/customer/app");
+      }
+    });
+  }, [router]);
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://app.enatalk.com/auth/callback",
+        redirectTo: "https://app.enatalk.com/login",
       },
     });
   };
