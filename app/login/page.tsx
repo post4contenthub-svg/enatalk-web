@@ -1,20 +1,10 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      flowType: "pkce", // 🔥 THIS IS THE KEY FIX
-    },
-  }
-);
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export default function LoginPage() {
   const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
+    await supabaseBrowser.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: "https://app.enatalk.com/auth/callback",
