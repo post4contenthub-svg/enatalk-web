@@ -1,16 +1,25 @@
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
 import NewTemplateButton from "./NewTemplateButton";
 import TemplateActions from "./TemplateActions";
 
 export default async function TemplatesPage() {
-  const supabase = createSupabaseServerClient();
+  // 🔥 MUST await
+  const supabase = await createSupabaseServerClient();
 
-  // 🔹 Get tenantId (adjust only if your app uses a different source)
+  // 🔐 Protect page
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  const tenantId = user?.user_metadata?.tenant_id;
+  if (!session) {
+    redirect("/login");
+  }
+
+  const tenantId =
+    session.user.user_metadata?.tenant_id ??
+    session.user.id;
 
   // 🔹 Fetch templates
   const { data: templates, error } = await supabase
@@ -19,11 +28,7 @@ export default async function TemplatesPage() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <div className="p-6 text-red-400">
-        {error.message}
-      </div>
-    );
+    throw new Error(error.message);
   }
 
   return (
@@ -35,8 +40,9 @@ export default async function TemplatesPage() {
             Templates
           </h1>
 
-          {/* ✅ YOUR EXISTING MODAL BUTTON */}
-          {tenantId && <NewTemplateButton tenantId={tenantId} />}
+          {tenantId && (
+            <NewTemplateButton tenantId={tenantId} />
+          )}
         </div>
 
         {/* Table */}
@@ -45,10 +51,18 @@ export default async function TemplatesPage() {
             <thead className="bg-slate-800 text-slate-300">
               <tr>
                 <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">Category</th>
-                <th className="px-4 py-3 text-left">Message Body</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                <th className="px-4 py-3 text-left">
+                  Category
+                </th>
+                <th className="px-4 py-3 text-left">
+                  Message Body
+                </th>
+                <th className="px-4 py-3 text-left">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left">
+                  Actions
+                </th>
               </tr>
             </thead>
 
@@ -67,14 +81,13 @@ export default async function TemplatesPage() {
                   </td>
 
                   <td className="px-4 py-3 text-slate-400 whitespace-pre-wrap max-w-xl">
-  {t.body_text}
-</td>
+                    {t.body_text}
+                  </td>
 
                   <td className="px-4 py-3 text-slate-300">
                     {t.status}
                   </td>
 
-                  {/* ✅ INLINE EDIT — NO ROUTING */}
                   <td className="px-4 py-3">
                     <TemplateActions
                       templateId={t.id}
