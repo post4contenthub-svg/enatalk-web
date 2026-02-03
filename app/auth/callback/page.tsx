@@ -1,44 +1,45 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export default async function AuthCallbackPage({
   searchParams,
 }: {
   searchParams: { code?: string };
 }) {
-  const cookieStore = cookies();
+  // ✅ MUST await cookies() in Next 16
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name, value, options) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name, options) {
-          cookieStore.set({ name, value: "", ...options });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  if (!searchParams.code) {
+  const code = searchParams.code;
+
+  if (!code) {
     redirect("/login");
   }
 
-  const { error } = await supabase.auth.exchangeCodeForSession(
-    searchParams.code
-  );
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error(error);
+    console.error("OAuth callback error:", error);
     redirect("/login");
   }
 
+  // ✅ FINAL DESTINATION AFTER LOGIN
   redirect("/customer/app");
 }
