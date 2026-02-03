@@ -67,7 +67,7 @@ function Topbar() {
     await supabase.auth.signOut();
 
     // ✅ Redirect to auth app
-    window.location.href = "https://enatalk.com/enatalk-auth";
+    window.location.href = "https://app.enatalk.com/login";
   }
 
   return (
