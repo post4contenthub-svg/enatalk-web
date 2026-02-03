@@ -1,32 +1,29 @@
 "use client";
 
-import { createBrowserClient } from "@supabase/ssr";
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const loginGoogle = async () => {
+  const supabase = getBrowserSupabaseClient();
+
+  const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: "https://app.enatalk.com/auth/callback",
       },
     });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-lg p-8">
-        <h1 className="text-lg font-semibold mb-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="bg-slate-900 p-8 rounded-xl shadow-lg w-full max-w-sm">
+        <h1 className="text-white text-xl font-semibold mb-6">
           Sign in to EnaTalk
         </h1>
 
         <button
-          onClick={loginGoogle}
-          className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition"
+          onClick={signInWithGoogle}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg"
         >
           Continue with Google
         </button>
