@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,23 +8,11 @@ const supabase = createClient(
 );
 
 export default function LoginPage() {
-  const router = useRouter();
-
-  // 🔑 IMPORTANT: handle OAuth redirect
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace("/customer/app");
-      }
-    });
-  }, [router]);
-
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: "https://app.enatalk.com/login",
-      },
+      // 🚨 DO NOT set redirectTo
+      // Supabase MUST control the callback for PKCE
     });
   };
 
