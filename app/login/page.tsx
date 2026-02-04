@@ -1,49 +1,80 @@
-"use client";
+// app/login/page.tsx
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+export default async function LoginPage() {
+  const cookieStore = await cookies();
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default function LoginPage() {
-  const router = useRouter();
-
-  // 🔥 AUTO REDIRECT IF ALREADY LOGGED IN
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        router.replace("/customer/app");
-      }
-    });
-  }, [router]);
-
-  const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: "https://app.enatalk.com/auth/callback",
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {}
+        },
       },
-    });
-  };
+    }
+  );
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="bg-slate-900 p-8 rounded-xl shadow-lg w-full max-w-sm">
-        <h1 className="text-white text-xl font-semibold mb-6">
-          Sign in to EnaTalk
-        </h1>
+  const { data: { user } } = await supabase.auth.getUser();
 
-        <button
-          onClick={signInWithGoogle}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg"
+  // If already logged in → show message + link (NO redirect!)
+  if (user) {
+    return (
+      <div style={{ padding: "60px", textAlign: "center", fontFamily: "sans-serif" }}>
+        <h1>You are already signed in!</h1>
+        <p>Great — you don't need to login again.</p>
+        <br />
+        <a 
+          href="/customer/app" 
+          style={{ 
+            background: "#0070f3", 
+            color: "white", 
+            padding: "12px 24px", 
+            borderRadius: "6px", 
+            textDecoration: "none",
+            fontSize: "18px"
+          }}
         >
-          Continue with Google
-        </button>
+          Go to Dashboard →
+        </a>
       </div>
+    );
+  }
+
+  // Not logged in → show Google login (and add email form later if you want)
+  return (
+    <div style={{ padding: "40px", maxWidth: "400px", margin: "auto", textAlign: "center" }}>
+      <h1>Sign in to EnaTalk</h1>
+      <br />
+
+      {/* Google Login Link/Button */}
+      <a
+        href="/api/auth/google"  // ← change this to your real Google sign-in route if different
+        style={{
+          background: "#4285F4",
+          color: "white",
+          padding: "12px 30px",
+          borderRadius: "4px",
+          textDecoration: "none",
+          fontSize: "16px",
+          display: "inline-block"
+        }}
+      >
+        Continue with Google
+      </a>
+
+      <p style={{ marginTop: "40px", color: "#666" }}>
+        Or use email + password (coming soon)
+      </p>
     </div>
   );
 }
