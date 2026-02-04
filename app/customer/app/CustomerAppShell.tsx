@@ -1,35 +1,164 @@
 // app/customer/app/CustomerAppShell.tsx
-
 import { ReactNode } from 'react';
+import Link from 'next/link';
 
-// Option A: Simple (if workspace is truly optional right now)
 interface CustomerAppShellProps {
   children: ReactNode;
-  workspace?: any;          // ← add ? to make it optional
-  // Better typing if you know the shape:
-  // workspace?: { id: string; name: string; plan?: string; /* ... */ } | null;
+  workspace?: any; // optional, can be removed if not used
 }
 
 export default function CustomerAppShell({
   children,
-  workspace,              // ← can be undefined now
+  workspace,
 }: CustomerAppShellProps) {
-  // Your existing shell logic...
-  
-  // Safely use workspace (add guards if needed)
-  // const workspaceName = workspace?.name ?? 'Default Workspace';
-
   return (
-    <div className="customer-app-shell">
-      {/* header, sidebar, etc. that might use workspace */}
-      <header>
-        {/* example usage */}
-        {workspace && <span>Workspace: {workspace.name}</span>}
-      </header>
-      
-      <main>{children}</main>
-      
-      {/* footer, etc. */}
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: '#0f172a', // dark background to match dashboard
+      }}
+    >
+      {/* LEFT SIDEBAR */}
+      <aside
+        style={{
+          width: '260px',
+          backgroundColor: '#1e293b',
+          color: '#e2e8f0',
+          borderRight: '1px solid #334155',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+        }}
+      >
+        {/* Logo / Brand */}
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid #334155' }}>
+          <h1 style={{ fontSize: '1.8rem', margin: 0, color: '#60a5fa' }}>
+            EnaTalk
+          </h1>
+        </div>
+
+        {/* Navigation */}
+        <nav style={{ flex: 1, padding: '24px 16px' }}>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <li>
+              <Link
+                href="/customer/app"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                  backgroundColor:
+                    typeof window !== 'undefined' && window.location.pathname === '/customer/app'
+                      ? '#334155'
+                      : 'transparent',
+                }}
+              >
+                <span style={{ marginRight: '12px' }}>📊</span> Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/customer/contacts"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                }}
+              >
+                <span style={{ marginRight: '12px' }}>👥</span> Contacts
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/customer/campaigns"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                }}
+              >
+                <span style={{ marginRight: '12px' }}>🚀</span> Campaigns
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/customer/templates"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                }}
+              >
+                <span style={{ marginRight: '12px' }}>📝</span> Templates
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/customer/settings"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  color: '#e2e8f0',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                }}
+              >
+                <span style={{ marginRight: '12px' }}>⚙️</span> Settings
+              </Link>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Bottom section – optional user info or logout */}
+        <div style={{ padding: '20px', borderTop: '1px solid #334155' }}>
+          <p style={{ fontSize: '0.9rem', margin: 0, color: '#94a3b8' }}>
+            {workspace?.name || 'Workspace'}
+          </p>
+          <p style={{ fontSize: '0.85rem', marginTop: '4px', color: '#64748b' }}>
+            Free Plan
+          </p>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Optional header */}
+        <header
+          style={{
+            padding: '16px 32px',
+            backgroundColor: '#1e293b',
+            borderBottom: '1px solid #334155',
+            color: '#e2e8f0',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '1.4rem' }}>
+            {workspace?.name || 'Dashboard'}
+          </h2>
+        </header>
+
+        {/* Page content */}
+        <main style={{ flex: 1, padding: '32px', backgroundColor: '#0f172a' }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
