@@ -1,80 +1,99 @@
 // app/login/page.tsx
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+'use client'
 
-export default async function LoginPage() {
-  const cookieStore = await cookies();
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'  // ← your new client helper
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {}
-        },
-      },
+export default function LoginPage() {
+  const router = useRouter()
+  const supabase = createClient()  // ← now from @supabase/ssr
+
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setLoading(false)
     }
-  );
+    checkUser()
+  }, [supabase])
 
-  const { data: { user } } = await supabase.auth.getUser();
+  if (loading) {
+    return <div style={{ padding: '100px', textAlign: 'center' }}>Loading...</div>
+  }
 
-  // If already logged in → show message + link (NO redirect!)
   if (user) {
     return (
-      <div style={{ padding: "60px", textAlign: "center", fontFamily: "sans-serif" }}>
-        <h1>You are already signed in!</h1>
-        <p>Great — you don't need to login again.</p>
-        <br />
-        <a 
-          href="/customer/app" 
-          style={{ 
-            background: "#0070f3", 
-            color: "white", 
-            padding: "12px 24px", 
-            borderRadius: "6px", 
-            textDecoration: "none",
-            fontSize: "18px"
+      <div style={{ padding: '80px 20px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+        <h1>Welcome back!</h1>
+        <p style={{ fontSize: '18px', margin: '20px 0' }}>
+          You are already signed in.
+        </p>
+        <button
+          onClick={() => router.push('/customer/app')}
+          style={{
+            backgroundColor: '#0070f3',
+            color: 'white',
+            padding: '14px 30px',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '18px',
+            cursor: 'pointer'
           }}
         >
           Go to Dashboard →
-        </a>
+        </button>
       </div>
-    );
+    )
   }
 
-  // Not logged in → show Google login (and add email form later if you want)
   return (
-    <div style={{ padding: "40px", maxWidth: "400px", margin: "auto", textAlign: "center" }}>
+    <div style={{
+      padding: '60px 20px',
+      maxWidth: '400px',
+      margin: '0 auto',
+      textAlign: 'center'
+    }}>
       <h1>Sign in to EnaTalk</h1>
-      <br />
+      <p style={{ color: '#666', marginBottom: '40px' }}>
+        Login with your Google account
+      </p>
 
-      {/* Google Login Link/Button */}
-      <a
-        href="/api/auth/google"  // ← change this to your real Google sign-in route if different
+      <button
+        onClick={async () => {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: `${window.location.origin}/auth/callback`
+            }
+          })
+
+          if (error) {
+            console.error('Google login error:', error)
+            alert('Login failed. Check console for details.')
+          }
+        }}
         style={{
-          background: "#4285F4",
-          color: "white",
-          padding: "12px 30px",
-          borderRadius: "4px",
-          textDecoration: "none",
-          fontSize: "16px",
-          display: "inline-block"
+          backgroundColor: '#4285F4',
+          color: 'white',
+          padding: '14px 30px',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '18px',
+          cursor: 'pointer',
+          width: '100%',
+          marginBottom: '30px'
         }}
       >
         Continue with Google
-      </a>
+      </button>
 
-      <p style={{ marginTop: "40px", color: "#666" }}>
-        Or use email + password (coming soon)
+      <p style={{ color: '#888', fontSize: '14px' }}>
+        Email + Password login coming soon...
       </p>
     </div>
-  );
+  )
 }
