@@ -11,9 +11,7 @@ export default function LoginPage() {
 
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  // Check current user session
   useEffect(() => {
     const checkUser = async () => {
       try {
@@ -30,18 +28,18 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '1.2rem'
       }}>
-        <p>Loading...</p>
+        Loading...
       </div>
     )
   }
 
-  // Already logged in → show friendly message
   if (user) {
     return (
       <div style={{
@@ -54,23 +52,22 @@ export default function LoginPage() {
         textAlign: 'center'
       }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
-          Welcome back!
+          You're already signed in
         </h1>
-        <p style={{ fontSize: '1.2rem', marginBottom: '2rem', color: '#555' }}>
-          You're already signed in.
+        <p style={{ fontSize: '1.25rem', marginBottom: '2rem', color: '#444' }}>
+          No need to log in again.
         </p>
         <button
           onClick={() => router.push('/customer/app')}
           style={{
-            backgroundColor: '#0070f3',
+            background: '#0070f3',
             color: 'white',
             border: 'none',
             padding: '14px 40px',
             borderRadius: '8px',
             fontSize: '1.1rem',
-            fontWeight: 500,
             cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
           }}
         >
           Go to Dashboard →
@@ -79,42 +76,33 @@ export default function LoginPage() {
     )
   }
 
-  // Not logged in → show login options
   return (
     <div style={{
       minHeight: '100vh',
       display: 'flex',
-      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      background: '#f9f9f9'
+      background: '#f8f9fa'
     }}>
       <div style={{
         background: 'white',
-        padding: '40px 30px',
+        padding: '40px',
         borderRadius: '12px',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
         width: '100%',
         maxWidth: '420px',
         textAlign: 'center'
       }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '2.2rem', marginBottom: '1rem' }}>
           Sign in to EnaTalk
         </h1>
-        <p style={{ color: '#666', marginBottom: '2rem' }}>
-          Use your Google account to get started
+        <p style={{ color: '#555', marginBottom: '2rem' }}>
+          Use your Google account
         </p>
-
-        {error && (
-          <p style={{ color: 'red', marginBottom: '1rem' }}>
-            {error}
-          </p>
-        )}
 
         <button
           onClick={async () => {
-            setError(null)
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
@@ -123,31 +111,28 @@ export default function LoginPage() {
             })
 
             if (error) {
-              console.error('Google login error:', error)
-              setError('Failed to start Google login. Please try again.')
+              console.error('Google login failed:', error)
+              alert('Could not start Google login. Please try again.')
             }
           }}
           style={{
-            backgroundColor: '#4285F4',
+            background: '#4285F4',
             color: 'white',
             border: 'none',
-            padding: '14px 30px',
+            padding: '14px 32px',
             borderRadius: '6px',
-            fontSize: '1.1rem',
+            fontSize: '1.15rem',
             fontWeight: 500,
             cursor: 'pointer',
             width: '100%',
-            marginBottom: '1.5rem',
-            transition: 'background 0.2s'
+            marginBottom: '1.5rem'
           }}
-          onMouseOver={e => e.currentTarget.style.backgroundColor = '#3367D6'}
-          onMouseOut={e => e.currentTarget.style.backgroundColor = '#4285F4'}
         >
           Continue with Google
         </button>
 
-        <p style={{ color: '#888', fontSize: '0.9rem' }}>
-          Email + password login coming soon...
+        <p style={{ color: '#777', fontSize: '0.95rem' }}>
+          Email & password sign-in coming soon
         </p>
       </div>
     </div>
