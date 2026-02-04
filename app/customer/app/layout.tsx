@@ -7,15 +7,20 @@ export default async function CustomerAppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = cookies();
+  // ✅ MUST await cookies() in Next.js 16
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll() {
+          // no-op (Next handles response cookies automatically)
+        },
       },
     }
   );
@@ -24,7 +29,7 @@ export default async function CustomerAppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 🔐 HARD AUTH GUARD
+  // 🔐 HARD SERVER AUTH GUARD
   if (!user) {
     redirect("/login");
   }
