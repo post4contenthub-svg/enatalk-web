@@ -1,14 +1,13 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
 export default async function AuthCallbackPage({
   searchParams,
 }: {
   searchParams: { code?: string };
 }) {
-  // ✅ MUST await cookies() in Next 16
-  const cookieStore = await cookies();
+  const cookieStore = await cookies(); // ✅ MUST await
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +19,7 @@ export default async function AuthCallbackPage({
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
+            cookieStore.set({ name, value, ...options });
           });
         },
       },
@@ -40,6 +39,6 @@ export default async function AuthCallbackPage({
     redirect("/login");
   }
 
-  // ✅ FINAL DESTINATION AFTER LOGIN
+  // ✅ SUCCESS — GO TO APP
   redirect("/customer/app");
 }

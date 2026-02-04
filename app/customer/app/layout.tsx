@@ -1,38 +1,25 @@
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import CustomerAppShell from './CustomerAppShell';  // ← fixed
+import { redirect } from 'next/navigation';
 
 export default async function CustomerAppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // ✅ MUST await cookies() in Next.js 16
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {
-          // no-op (Next handles response cookies automatically)
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // 🔐 HARD SERVER AUTH GUARD
+  const supabase = await createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    redirect("/login");
+    redirect('/login');
   }
 
-  return <>{children}</>;
+  // If you want to pass workspace (optional for now)
+  // const { data: workspace } = await ... fetch workspace ...
+
+  return (
+    <CustomerAppShell /* workspace={workspace} */>
+      {children}
+    </CustomerAppShell>
+  );
 }
