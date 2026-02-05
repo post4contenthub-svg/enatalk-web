@@ -1,6 +1,9 @@
+// app/customer/app/contacts/EditContactModal.tsx
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type FieldDef = {
   key: string;
@@ -26,6 +29,9 @@ export default function EditContactModal({
   fieldDefs: FieldDef[];
   onClose: () => void;
 }) {
+  const supabase = createClient();
+  const router = useRouter();
+
   const [phone, setPhone] = useState(contact.phone);
   const [name, setName] = useState(contact.name ?? "");
   const [tagsStr, setTagsStr] = useState((contact.tags || []).join(", "));
@@ -47,41 +53,48 @@ export default function EditContactModal({
       return;
     }
 
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      alert("Error: You must be logged in to save contacts.");
+      return;
+    }
+
+    const currentTenantId = user.id;
+
     const tags = tagsStr
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
 
+    setSaving(true);
+
     try {
-      setSaving(true);
+      const payload = {
+        phone: phone.trim(),
+        name: name.trim() || null,
+        tags,
+        custom_fields: customFields,
+      };
 
-      const res = await fetch("/api/customer/contacts/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contactId: contact.id,
-          tenantId,
-          phone: phone.trim(),
-          name: name.trim() || null,
-          tags,
-          custom_fields: customFields,
-        }),
-      });
+      const { error } = await supabase
+        .from("contacts")
+        .update(payload)
+        .eq("id", contact.id)
+        .eq("tenant_id", currentTenantId);
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        console.error("Update contact error:", json);
-        alert(json.error || "Failed to update contact");
+      if (error) {
+        alert("Failed to update contact: " + error.message);
+        console.error(error);
         return;
       }
 
       alert("Contact updated ✅");
+      router.refresh();
       onClose();
-      window.location.reload();
     } catch (err: any) {
-      console.error(err);
       alert(err?.message || "Unexpected error");
+      console.error(err);
     } finally {
       setSaving(false);
     }

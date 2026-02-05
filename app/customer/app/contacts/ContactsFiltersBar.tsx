@@ -1,3 +1,4 @@
+// app/customer/app/contacts/ContactsFiltersBar.tsx
 "use client";
 
 type TemplateRow = {

@@ -1,172 +1,148 @@
+// app/customer/app/contacts/NewContactButton.tsx
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type FieldDef = {
   key: string;
   label: string;
-  type?: string;
 };
 
-export default function NewContactButton({
-  tenantId,
-  fieldDefs,
-}: {
+type Props = {
   tenantId: string;
   fieldDefs: FieldDef[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [name, setName] = useState("");
-  const [tags, setTags] = useState("");
-  const [customValues, setCustomValues] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+};
 
-  function handleChangeField(key: string, value: string) {
-    setCustomValues((prev) => ({ ...prev, [key]: value }));
+export default function NewContactButton({ tenantId, fieldDefs }: Props) {
+  const supabase = createClient();
+  const router = useRouter();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [customFields, setCustomFields] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+
+  function openModal() {
+    setIsOpen(true);
+    setName("");
+    setPhone("");
+    setCustomFields({});
+  }
+
+  function closeModal() {
+    setIsOpen(false);
+  }
+
+  function updateCustomField(key: string, value: string) {
+    setCustomFields((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSave() {
     if (!phone.trim()) {
-      alert("Phone number is required.");
+      alert("Phone is required");
       return;
     }
 
-    try {
-      setLoading(true);
+    setSaving(true);
 
-      const res = await fetch("/api/customer/contacts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId,
-          phone: phone.trim(),
-          name: name.trim() || null,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-          custom_fields: customValues,
-        }),
-      });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      let json: any = null;
-      try {
-        json = await res.json();
-      } catch {
-        // ignore
-      }
-
-      if (!res.ok) {
-        const msg =
-          (json && (json.error || json.message || json.details)) ||
-          `Failed with HTTP ${res.status}`;
-        alert(`Failed to create contact: ${msg}`);
-        return;
-      }
-
-      alert("Contact created ✅");
-      setOpen(false);
-      window.location.reload();
-    } catch (err: any) {
-      alert(err?.message || "Unexpected error");
-    } finally {
-      setLoading(false);
+    if (userError || !user) {
+      alert("Error: You must be logged in to save contacts.");
+      setSaving(false);
+      return;
     }
+
+    const currentTenantId = user.id;
+
+    const payload = {
+      name: name.trim() || null,
+      phone: phone.trim(),
+      custom_fields: customFields,
+      tenant_id: currentTenantId,
+    };
+
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      alert("Failed to create contact: " + error.message);
+    } else {
+      alert("Contact created ✓");
+      router.refresh();
+      closeModal();
+    }
+
+    setSaving(false);
   }
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
-        className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+        onClick={openModal}
+        className="px-4 py-2 bg-green-600 text-white rounded font-medium"
       >
-        + New contact
+        + New Contact
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-lg">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">New Contact</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-xs text-slate-500"
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-96 space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-black">New Contact</h2>
+              <button 
+                onClick={closeModal}
+                className="text-xl font-bold text-gray-600 hover:text-black"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {/* Phone */}
-              <div>
-                <label className="text-[11px] text-slate-600">Phone *</label>
-                <input
-                  className="mt-1 w-full rounded border px-2 py-1"
-                  placeholder="e.g. 919812345678"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              {/* Name */}
-              <div>
-                <label className="text-[11px] text-slate-600">Name</label>
-                <input
-                  className="mt-1 w-full rounded border px-2 py-1"
-                  placeholder="Optional"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-
-              {/* Tags */}
-              <div>
-                <label className="text-[11px] text-slate-600">
-                  Tags (comma separated)
-                </label>
-                <input
-                  className="mt-1 w-full rounded border px-2 py-1"
-                  placeholder="New lead, Website"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                />
-              </div>
-
-              {/* Dynamic custom fields */}
-              {fieldDefs.map((field) => {
-                const inputType =
-                  field.type === "number"
-                    ? "number"
-                    : field.type === "date"
-                    ? "date"
-                    : "text";
-
-                return (
-                  <div key={field.key}>
-                    <label className="text-[11px] text-slate-600">
-                      {field.label}
-                    </label>
-                    <input
-                      type={inputType}
-                      className="mt-1 w-full rounded border px-2 py-1"
-                      value={customValues[field.key] || ""}
-                      onChange={(e) =>
-                        handleChangeField(field.key, e.target.value)
-                      }
-                    />
-                  </div>
-                );
-              })}
-
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="mt-3 w-full rounded bg-emerald-600 py-2 text-white disabled:opacity-60"
-              >
-                {loading ? "Saving…" : "Save Contact"}
-              </button>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-black">Name</label>
+              <input
+                placeholder="Enter name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 px-4 py-3 rounded-lg text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-black">Phone *</label>
+              <input
+                placeholder="Enter phone number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border border-gray-300 px-4 py-3 rounded-lg text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {fieldDefs.map((f) => (
+              <div key={f.key}>
+                <label className="block text-sm font-medium mb-1 text-black">{f.label}</label>
+                <input
+                  placeholder={`Enter ${f.label.toLowerCase()}`}
+                  value={customFields[f.key] ?? ""}
+                  onChange={(e) => updateCustomField(f.key, e.target.value)}
+                  className="w-full border border-gray-300 px-4 py-3 rounded-lg text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            ))}
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Contact"}
+            </button>
           </div>
         </div>
       )}

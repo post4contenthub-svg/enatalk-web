@@ -1,6 +1,9 @@
+// app/customer/app/contacts/ContactsClient.tsx
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { ContactsSearchBar } from "./ContactsSearchBar";
 
 type ContactRow = {
@@ -31,10 +34,14 @@ export default function ContactsClient({
   contactsError,
   fieldDefsError,
 }: Props) {
+  const supabase = createClient();
+  const router = useRouter();
+
   const [rows, setRows] = useState<ContactRow[]>(initialRows);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<ContactRow | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false); // Added loading state
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -75,40 +82,66 @@ export default function ContactsClient({
   }
 
   async function saveContact() {
-    if (!phone) {
+    if (!phone.trim()) {
       alert("Phone is required");
       return;
     }
 
-    const payload = {
-      tenant_id: tenantId,
-      id: editing?.id || undefined,
-      name,
-      phone,
-      custom_fields: customFields,
-    };
+    setSaving(true);
 
-    const res = await fetch("/api/customer/contacts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    const text = await res.text();
-    const data = text ? JSON.parse(text) : null;
-
-    if (!res.ok) {
-      alert("Save failed");
+    if (userError || !user) {
+      alert("Error: You must be logged in to save contacts.");
+      setSaving(false);
       return;
     }
 
-    setRows((prev) =>
-      editing?.id
-        ? prev.map((r) => (r.id === data.contact.id ? data.contact : r))
-        : [data.contact, ...prev]
-    );
+    const currentTenantId = user.id;
 
-    closePanel();
+    const payload = {
+      name,
+      phone,
+      custom_fields: customFields,
+      tenant_id: currentTenantId,  // ← Fixes TENANT_REQUIRED
+    };
+
+    console.log('Saving contact with payload:', payload); // Debug log
+
+    let data = null;
+    let error = null;
+
+    if (editing?.id) {
+      // Update
+      ({ data, error } = await supabase
+        .from("contacts")
+        .update(payload)
+        .eq("id", editing.id)
+        .eq("tenant_id", currentTenantId)
+        .select()
+        .single());
+    } else {
+      // Insert
+      ({ data, error } = await supabase
+        .from("contacts")
+        .insert(payload)
+        .select()
+        .single());
+    }
+
+    if (error) {
+      console.error('Supabase error:', error); // Debug log
+      alert("Save failed: " + error.message);
+    } else {
+      setRows((prev) =>
+        editing?.id
+          ? prev.map((r) => (r.id === data.id ? data : r))
+          : [data, ...prev]
+      );
+      closePanel();
+    }
+
+    setSaving(false);
   }
 
   /* ---------- WHATSAPP ---------- */
@@ -279,9 +312,10 @@ export default function ContactsClient({
 
             <button
               onClick={saveContact}
-              className="w-full bg-blue-600 text-white py-2 rounded"
+              disabled={saving}
+              className="w-full bg-blue-600 text-white py-2 rounded disabled:opacity-50"
             >
-              Save Contact
+              {saving ? "Saving..." : "Save Contact"}
             </button>
           </div>
         </div>
