@@ -1,14 +1,14 @@
 // app/customer/app/CustomerAppShell.tsx
-'use client'  // Enable client-side features for logout and user data
+'use client'
 
 import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';  // Your client Supabase helper
+import { createClient } from '@/lib/supabase/client';
 
 interface CustomerAppShellProps {
   children: ReactNode;
-  workspace?: any; // optional – can be removed if not used
+  workspace?: any; // optional, can be removed if not used
 }
 
 export default function CustomerAppShell({
@@ -17,18 +17,19 @@ export default function CustomerAppShell({
 }: CustomerAppShellProps) {
   const router = useRouter();
   const supabase = createClient();
-  const [userName, setUserName] = useState<string>('');
-  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png'); // Default avatar URL
+  const [userName, setUserName] = useState<string>('Customer');
+  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png'); // fallback image
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Fetch user name and avatar on mount
+  // Fetch user name and avatar
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setUserName(user.email || user.user_metadata?.full_name || 'Customer');
+        const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer';
+        setUserName(name);
         if (user.user_metadata?.picture) {
-          setAvatarUrl(user.user_metadata.picture); // From Google profile if OAuth
+          setAvatarUrl(user.user_metadata.picture); // Google profile pic
         }
       } else {
         router.push('/login');
@@ -37,28 +38,23 @@ export default function CustomerAppShell({
     fetchUser();
   }, [supabase, router]);
 
-  // Automatic logout after 10 minutes of inactivity
+  // Auto-logout after 10 minutes inactivity
   useEffect(() => {
-    const LOGOUT_TIMEOUT = 10 * 60 * 1000; // 10 minutes in ms
-
+    const LOGOUT_TIMEOUT = 10 * 60 * 1000; // 10 minutes
     const handleActivity = () => {
-      if (idleTimer) {
-        clearTimeout(idleTimer);
-      }
-      const timer = setTimeout(async () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      const newTimer = setTimeout(async () => {
         await supabase.auth.signOut();
         router.push('/login');
       }, LOGOUT_TIMEOUT);
-      setIdleTimer(timer);
+      setIdleTimer(newTimer);
     };
 
-    // Listen for user activity
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
     window.addEventListener('scroll', handleActivity);
 
-    // Start timer on load
-    handleActivity();
+    handleActivity(); // start timer
 
     return () => {
       if (idleTimer) clearTimeout(idleTimer);
@@ -101,7 +97,7 @@ export default function CustomerAppShell({
           </h1>
         </div>
 
-        {/* Navigation – FIXED LINKS */}
+        {/* Navigation */}
         <nav style={{ flex: 1, padding: '24px 16px' }}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             <li>
@@ -219,7 +215,7 @@ export default function CustomerAppShell({
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* TOP HEADER with Customer Name, Avatar, and Logout */}
+        {/* Optional header */}
         <header
           style={{
             padding: '16px 32px',
@@ -235,18 +231,21 @@ export default function CustomerAppShell({
             {workspace?.name || 'Dashboard'}
           </h2>
 
+          {/* User profile + logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Customer Name with Avatar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <img
                 src={avatarUrl}
-                alt="Avatar"
-                style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+                alt="Profile Avatar"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: '1px solid #334155',
+                }}
               />
               <span style={{ fontSize: '1rem' }}>{userName}</span>
             </div>
-
-            {/* Logout Button */}
             <button
               onClick={handleLogout}
               style={{
