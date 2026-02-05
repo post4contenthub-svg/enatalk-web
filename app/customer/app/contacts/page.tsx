@@ -18,6 +18,22 @@ export default async function ContactsPage() {
     redirect("/login");
   }
 
+  // 🔹 Tenant ID (using logged-in user)
+  const tenantId = session.user.id;
+
+  // 🔹 EXTRA FIELD DEFINITIONS – these will vary per user/tenant in the future
+  // TODO: Replace this hardcoded array with a DB fetch, e.g.:
+  // const { data: settings } = await supabase.from('tenant_settings').select('contact_fields').eq('tenant_id', tenantId).single();
+  // const extraFieldDefs = settings?.contact_fields ?? defaultExtraFieldDefs;
+  const extraFieldDefs = [
+    { key: "city", label: "City" },
+    { key: "order_id", label: "Order ID" },
+    { key: "bike_number", label: "Bike Number" },
+    { key: "bike_make", label: "Bike Make" },
+    { key: "bike_model", label: "Bike Model" },
+    // Add more fields here (e.g. { key: "tags", label: "Tags" }) when needed
+  ];
+
   // 🔹 Fetch contacts
   const { data: contacts, error } = await supabase
     .from("contacts")
@@ -28,17 +44,8 @@ export default async function ContactsPage() {
     throw new Error(error.message);
   }
 
-  // 🔹 Tenant ID (using logged-in user)
-  const tenantId = session.user.id;
-
-  // 🔹 Field definitions
-  const fieldDefs = [
-    { key: "city", label: "City" },
-    { key: "order_id", label: "Order ID" },
-    { key: "bike_number", label: "Bike Number" },
-    { key: "bike_make", label: "Bike Make" },
-    { key: "bike_model", label: "Bike Model" },
-  ];
+  // Calculate colspan for empty state
+  const totalColumns = 2 + extraFieldDefs.length + 1; // Name + Phone + dynamic fields + Actions
 
   return (
     <div className="px-8 py-6">
@@ -52,11 +59,11 @@ export default async function ContactsPage() {
           <div className="flex gap-2">
             <ImportCsvButton
               tenantId={tenantId}
-              fieldDefs={fieldDefs}
+              fieldDefs={extraFieldDefs}
             />
             <NewContactButton
               tenantId={tenantId}
-              fieldDefs={fieldDefs}
+              fieldDefs={extraFieldDefs}
             />
           </div>
         </div>
@@ -68,20 +75,12 @@ export default async function ContactsPage() {
               <tr>
                 <th className="px-4 py-3 text-left">Name</th>
                 <th className="px-4 py-3 text-left">Phone</th>
-                <th className="px-4 py-3 text-left">City</th>
-                <th className="px-4 py-3 text-left">Order ID</th>
-                <th className="px-4 py-3 text-left">
-                  Bike Number
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Bike Make
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Bike Model
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Actions
-                </th>
+                {extraFieldDefs.map((field) => (
+                  <th key={field.key} className="px-4 py-3 text-left">
+                    {field.label}
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-left">Actions</th>
               </tr>
             </thead>
 
@@ -94,26 +93,16 @@ export default async function ContactsPage() {
                   <td className="px-4 py-3 text-slate-300">
                     {c.phone}
                   </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {c.city ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {c.order_id ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {c.bike_number ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {c.bike_make ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {c.bike_model ?? "—"}
-                  </td>
+                  {extraFieldDefs.map((field) => (
+                    <td key={field.key} className="px-4 py-3 text-slate-300">
+                      {c[field.key] ?? "—"}
+                    </td>
+                  ))}
                   <td className="px-4 py-3">
                     <RowActions
                       contact={c}
                       tenantId={tenantId}
-                      fieldDefs={fieldDefs}
+                      fieldDefs={extraFieldDefs}
                     />
                   </td>
                 </tr>
@@ -122,7 +111,7 @@ export default async function ContactsPage() {
               {contacts?.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={totalColumns}
                     className="px-4 py-6 text-center text-slate-400"
                   >
                     No contacts found

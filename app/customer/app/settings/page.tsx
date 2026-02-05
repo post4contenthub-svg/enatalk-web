@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import AddFieldModal from "./AddFieldModal";
 
 type FieldDef = {
@@ -13,171 +14,213 @@ type FieldDef = {
   type?: string;
 };
 
-const TENANT_ID = "5ddd6091-ba29-4b65-8684-f9da79f28af7";
-
 export default function SettingsPage() {
+  const supabase = createClient();
+
   const [fields, setFields] = useState<FieldDef[]>([]);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddField, setShowAddField] = useState(false);
 
+  // Load current user → tenantId
   useEffect(() => {
-    loadFields();
-  }, []);
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setTenantId(user.id);
+      } else {
+        // Redirect or handle unauth (optional)
+        window.location.href = "/login";
+      }
+    };
+    getUser();
+  }, [supabase]);
+
+  // Load fields when tenantId is available
+  useEffect(() => {
+    if (tenantId) {
+      loadFields();
+    }
+  }, [tenantId]);
 
   async function loadFields() {
+    if (!tenantId) return;
+
     setLoading(true);
 
-    const res = await fetch(
-      `/api/customer/fields/list?tenantId=${TENANT_ID}`
-    );
+    const { data, error } = await supabase
+      .from("tenant_contact_fields")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("sort_order", { ascending: true });
 
-    const json = await res.json();
-
-    if (res.ok) {
-      setFields(json.fields);
+    if (error) {
+      alert(error.message || "Failed to load fields");
+      console.error(error);
     } else {
-      alert(json.error || "Failed to load fields");
+      setFields(data || []);
     }
 
     setLoading(false);
   }
 
   async function toggleShow(id: string, show: boolean) {
-    await fetch("/api/customer/fields/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, show_in_table: show }),
-    });
+    const { error } = await supabase
+      .from("tenant_contact_fields")
+      .update({ show_in_table: show })
+      .eq("id", id);
 
-    loadFields();
+    if (!error) {
+      loadFields();
+    }
   }
 
   async function toggleRequired(id: string, required: boolean) {
-    await fetch("/api/customer/fields/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, required }),
-    });
+    const { error } = await supabase
+      .from("tenant_contact_fields")
+      .update({ required })
+      .eq("id", id);
 
-    loadFields();
+    if (!error) {
+      loadFields();
+    }
   }
 
   async function deleteField(id: string) {
-    if (!confirm("Delete this field?")) return;
+    if (!confirm("Are you sure you want to delete this field? This cannot be undone.")) return;
 
-    await fetch("/api/customer/fields/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    const { error } = await supabase
+      .from("tenant_contact_fields")
+      .delete()
+      .eq("id", id);
 
+    if (!error) {
+      loadFields();
+    } else {
+      alert("Failed to delete field");
+    }
+  }
+
+  // Callback after successful add → refresh list
+  const handleFieldAdded = () => {
     loadFields();
+    setShowAddField(false);
+  };
+
+  if (!tenantId) {
+    return <div className="p-8 text-white">Loading...</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="mb-2 text-xl font-semibold">Settings</h1>
+    <div className="px-8 py-6">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <h1 className="text-2xl font-semibold text-white">Settings</h1>
 
-      {/* --------------------------- HEADER --------------------------- */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Lead fields</h2>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-medium text-white">Contact / Lead Fields</h2>
+          <button
+            onClick={() => setShowAddField(true)}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+          >
+            + Add Field
+          </button>
+        </div>
 
-        <button
-          onClick={() => setShowAddField(true)}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
-        >
-          + Add field
-        </button>
-      </div>
-
-      {/* --------------------------- FIELDS TABLE --------------------------- */}
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <table className="min-w-full text-xs">
-          <thead className="bg-slate-100 text-slate-600 uppercase">
-            <tr>
-              <th className="px-3 py-2 text-left">LABEL</th>
-              <th className="px-3 py-2 text-left">KEY</th>
-              <th className="px-3 py-2 text-left">REQUIRED</th>
-              <th className="px-3 py-2 text-left">SHOW IN TABLE</th>
-              <th className="px-3 py-2 text-left">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {!loading &&
-              fields.map((f) => (
-                <tr key={f.id}>
-                  <td className="px-3 py-2">{f.label}</td>
-                  <td className="px-3 py-2 text-slate-500">{f.key}</td>
-
-                  {/* Required */}
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={f.required}
-                      onChange={(e) =>
-                        toggleRequired(f.id, e.target.checked)
-                      }
-                    />
-                  </td>
-
-                  {/* Show In Table */}
-                  <td className="px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={f.show_in_table}
-                      onChange={(e) =>
-                        toggleShow(f.id, e.target.checked)
-                      }
-                    />
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-3 py-2">
-                    {f.key !== "name" && f.key !== "phone" ? (
-                      <button
-                        onClick={() => deleteField(f.id)}
-                        className="rounded border px-2 py-1 text-xs hover:bg-red-50"
-                      >
-                        Remove
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">
-                        system
-                      </span>
-                    )}
+        {/* Fields Table */}
+        <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800 text-slate-400 uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3 text-left">Label</th>
+                <th className="px-4 py-3 text-left">Key</th>
+                <th className="px-4 py-3 text-left">Required</th>
+                <th className="px-4 py-3 text-left">Show in Table</th>
+                <th className="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {loading && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                    Loading fields...
                   </td>
                 </tr>
-              ))}
+              )}
 
-            {loading && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-3 py-4 text-center text-slate-400"
-                >
-                  Loading...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {!loading && fields.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                    No custom fields yet. Add your first field to get started.
+                  </td>
+                </tr>
+              )}
+
+              {!loading &&
+                fields.map((f) => (
+                  <tr key={f.id} className="hover:bg-slate-800 transition-colors">
+                    <td className="px-4 py-3 text-white font-medium">{f.label}</td>
+                    <td className="px-4 py-3 text-slate-400">{f.key}</td>
+
+                    {/* Required */}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={f.required}
+                        onChange={(e) => toggleRequired(f.id, e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-emerald-600 focus:ring-emerald-600"
+                      />
+                    </td>
+
+                    {/* Show in Table */}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={f.show_in_table}
+                        onChange={(e) => toggleShow(f.id, e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-600 bg-slate-700 text-emerald-600 focus:ring-emerald-600"
+                      />
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      {f.key !== "name" && f.key !== "phone" ? (
+                        <button
+                          onClick={() => deleteField(f.id)}
+                          className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-500">system</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Help Box */}
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-6 text-sm text-slate-300">
+          <h3 className="mb-3 text-base font-medium text-white">How contact fields work</h3>
+          <ul className="list-disc space-y-2 pl-5">
+            <li>You can add extra fields like City, Bike Model, Policy Number, etc.</li>
+            <li>Toggle "Show in Table" to display the field as a column on the Contacts page.</li>
+            <li>Mark fields as "Required" to enforce them when adding/editing contacts.</li>
+            <li>These fields will also be available in message templates and campaigns later.</li>
+          </ul>
+        </div>
+
+        {/* Add Field Modal */}
+        {showAddField && tenantId && (
+          <AddFieldModal
+            tenantId={tenantId}
+            onClose={() => setShowAddField(false)}
+            onSuccess={handleFieldAdded}
+          />
+        )}
       </div>
-
-      {/* --------------------------- HELP BOX --------------------------- */}
-      <div className="rounded-xl border bg-white p-4 text-xs text-slate-600">
-        <h3 className="mb-2 text-sm font-semibold">How lead fields work</h3>
-        <p>1. You can add extra fields like City, Car Model, Policy No, etc.</p>
-        <p>2. These fields appear on the Contacts page.</p>
-        <p>3. Later, they can be used in templates and campaigns.</p>
-      </div>
-
-      {/* --------------------------- MODAL --------------------------- */}
-      {showAddField && (
-        <AddFieldModal
-          tenantId={TENANT_ID}
-          onClose={() => setShowAddField(false)}
-        />
-      )}
     </div>
   );
 }
