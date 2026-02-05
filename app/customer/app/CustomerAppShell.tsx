@@ -1,17 +1,13 @@
-// app/customer/app/CustomerAppShell.tsx
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 interface CustomerAppShellProps {
   children: ReactNode
-  workspace?: {
-    name?: string
-    // add other workspace fields if needed
-  }
+  workspace?: any
 }
 
 export default function CustomerAppShell({
@@ -19,145 +15,113 @@ export default function CustomerAppShell({
   workspace,
 }: CustomerAppShellProps) {
   const router = useRouter()
-  const pathname = usePathname()
   const supabase = createClient()
-
   const [userName, setUserName] = useState<string>('Customer')
   const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png')
   const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null)
 
-  // Fetch user data
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      if (user) {
+        const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
+        setUserName(name)
+        if (user.user_metadata?.picture) {
+          setAvatarUrl(user.user_metadata.picture)
+        }
+      } else {
         router.push('/login')
-        return
-      }
-
-      const name =
-        user.user_metadata?.full_name ||
-        user.email?.split('@')[0] ||
-        'Customer'
-
-      setUserName(name)
-
-      if (user.user_metadata?.picture) {
-        setAvatarUrl(user.user_metadata.picture)
       }
     }
-
     fetchUser()
   }, [supabase, router])
 
-  // Idle timeout → auto logout after 10 minutes inactivity
   useEffect(() => {
-    const LOGOUT_TIMEOUT = 10 * 60 * 1000 // 10 minutes
-
-    const resetTimer = () => {
+    const LOGOUT_TIMEOUT = 10 * 60 * 1000
+    const handleActivity = () => {
       if (idleTimer) clearTimeout(idleTimer)
-
       const newTimer = setTimeout(async () => {
         await supabase.auth.signOut()
         router.push('/login')
       }, LOGOUT_TIMEOUT)
-
       setIdleTimer(newTimer)
     }
 
-    const events = ['mousemove', 'keydown', 'scroll']
-
-    events.forEach((event) => window.addEventListener(event, resetTimer))
-
-    resetTimer() // initialize
+    window.addEventListener('mousemove', handleActivity)
+    window.addEventListener('keydown', handleActivity)
+    window.addEventListener('scroll', handleActivity)
+    handleActivity()
 
     return () => {
       if (idleTimer) clearTimeout(idleTimer)
-      events.forEach((event) => window.removeEventListener(event, resetTimer))
+      window.removeEventListener('mousemove', handleActivity)
+      window.removeEventListener('keydown', handleActivity)
+      window.removeEventListener('scroll', handleActivity)
     }
-  }, [supabase, router, idleTimer])
+  }, [supabase, router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  const navItems = [
-    { href: '/customer/app', label: 'Dashboard', emoji: '📊' },
-    { href: '/customer/app/contacts', label: 'Contacts', emoji: '👥' },
-    { href: '/customer/app/campaigns', label: 'Campaigns', emoji: '🚀' },
-    { href: '/customer/app/templates', label: 'Templates', emoji: '📝' },
-    { href: '/customer/app/settings', label: 'Settings', emoji: '⚙️' },
-  ]
-
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-700 flex flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-3xl font-bold text-blue-400 m-0">EnaTalk</h1>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a' }}>
+      <aside style={{ width: '260px', backgroundColor: '#1e293b', color: '#e2e8f0', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid #334155' }}>
+          <h1 style={{ fontSize: '1.8rem', margin: 0, color: '#60a5fa' }}>EnaTalk</h1>
         </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-6">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`
-                    flex items-center px-4 py-3 rounded-lg text-slate-200
-                    hover:bg-slate-800 transition-colors
-                    ${pathname === item.href ? 'bg-slate-800 font-medium' : ''}
-                  `}
-                >
-                  <span className="mr-3 text-lg">{item.emoji}</span>
-                  {item.label}
-                </Link>
-              </li>
-            ))}
+        <nav style={{ flex: 1, padding: '24px 16px' }}>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <li>
+              <Link href="/customer/app" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', color: '#e2e8f0', textDecoration: 'none', borderRadius: '6px', marginBottom: '8px', backgroundColor: typeof window !== 'undefined' && window.location.pathname === '/customer/app' ? '#334155' : 'transparent' }}>
+                <span style={{ marginRight: '12px' }}>📊</span> Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link href="/customer/app/contacts" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', color: '#e2e8f0', textDecoration: 'none', borderRadius: '6px', marginBottom: '8px', backgroundColor: typeof window !== 'undefined' && window.location.pathname === '/customer/app/contacts' ? '#334155' : 'transparent' }}>
+                <span style={{ marginRight: '12px' }}>👥</span> Contacts
+              </Link>
+            </li>
+            <li>
+              <Link href="/customer/app/campaigns" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', color: '#e2e8f0', textDecoration: 'none', borderRadius: '6px', marginBottom: '8px', backgroundColor: typeof window !== 'undefined' && window.location.pathname === '/customer/app/campaigns' ? '#334155' : 'transparent' }}>
+                <span style={{ marginRight: '12px' }}>🚀</span> Campaigns
+              </Link>
+            </li>
+            <li>
+              <Link href="/customer/app/templates" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', color: '#e2e8f0', textDecoration: 'none', borderRadius: '6px', marginBottom: '8px', backgroundColor: typeof window !== 'undefined' && window.location.pathname === '/customer/app/templates' ? '#334155' : 'transparent' }}>
+                <span style={{ marginRight: '12px' }}>📝</span> Templates
+              </Link>
+            </li>
+            <li>
+              <Link href="/customer/app/settings" style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', color: '#e2e8f0', textDecoration: 'none', borderRadius: '6px', backgroundColor: typeof window !== 'undefined' && window.location.pathname === '/customer/app/settings' ? '#334155' : 'transparent' }}>
+                <span style={{ marginRight: '12px' }}>⚙️</span> Settings
+              </Link>
+            </li>
           </ul>
         </nav>
-
-        {/* Workspace info */}
-        <div className="p-5 border-t border-slate-700 text-sm">
-          <p className="text-slate-300 font-medium">
-            {workspace?.name || 'Workspace'}
-          </p>
-          <p className="text-slate-500 mt-1">Free Plan</p>
+        <div style={{ padding: '20px', borderTop: '1px solid #334155' }}>
+          <p style={{ fontSize: '0.9rem', margin: 0, color: '#94a3b8' }}>{workspace?.name || 'Workspace'}</p>
+          <p style={{ fontSize: '0.85rem', marginTop: '4px', color: '#64748b' }}>Free Plan</p>
         </div>
       </aside>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between px-8 py-4 bg-slate-900 border-b border-slate-700">
-          <h2 className="text-xl font-semibold">
-            {workspace?.name || 'Dashboard'}
-          </h2>
-
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <img
-                src={avatarUrl}
-                alt="User avatar"
-                className="w-8 h-8 rounded-full border border-slate-700 object-cover"
-              />
-              <span className="text-slate-200">{userName}</span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <header style={{ padding: '16px 32px', backgroundColor: '#1e293b', borderBottom: '1px solid #334155', color: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{workspace?.name || 'Dashboard'}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img src={avatarUrl} alt="Profile Avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid #334155' }} />
+              <span style={{ fontSize: '1rem' }}>{userName}</span>
             </div>
-
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium transition-colors"
-            >
+            <button onClick={handleLogout} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.95rem' }}>
               Logout
             </button>
           </div>
         </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-8 bg-slate-950">{children}</main>
+        <main style={{ flex: 1, padding: '32px', backgroundColor: '#0f172a' }}>
+          {children}
+        </main>
       </div>
     </div>
   )
