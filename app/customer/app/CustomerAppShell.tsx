@@ -1,6 +1,10 @@
 // app/customer/app/CustomerAppShell.tsx
-import { ReactNode } from 'react';
+'use client'  // Enable client-side features for logout and user data
+
+import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';  // Your client Supabase helper
 
 interface CustomerAppShellProps {
   children: ReactNode;
@@ -11,6 +15,65 @@ export default function CustomerAppShell({
   children,
   workspace,
 }: CustomerAppShellProps) {
+  const router = useRouter();
+  const supabase = createClient();
+  const [userName, setUserName] = useState<string>('');
+  const [avatarUrl, setAvatarUrl] = useState<string>('/default-avatar.png'); // Default avatar URL
+  const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Fetch user name and avatar on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserName(user.email || user.user_metadata?.full_name || 'Customer');
+        if (user.user_metadata?.picture) {
+          setAvatarUrl(user.user_metadata.picture); // From Google profile if OAuth
+        }
+      } else {
+        router.push('/login');
+      }
+    };
+    fetchUser();
+  }, [supabase, router]);
+
+  // Automatic logout after 10 minutes of inactivity
+  useEffect(() => {
+    const LOGOUT_TIMEOUT = 10 * 60 * 1000; // 10 minutes in ms
+
+    const handleActivity = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      const timer = setTimeout(async () => {
+        await supabase.auth.signOut();
+        router.push('/login');
+      }, LOGOUT_TIMEOUT);
+      setIdleTimer(timer);
+    };
+
+    // Listen for user activity
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+
+    // Start timer on load
+    handleActivity();
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+    };
+  }, [supabase, router]);
+
+  // Logout function
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
   return (
     <div
       style={{
@@ -56,7 +119,6 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app'
                       ? '#334155'
                       : 'transparent',
-                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>📊</span> Dashboard
@@ -64,7 +126,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/app/contacts"  // FIXED
+                href="/customer/app/contacts"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -77,7 +139,6 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app/contacts'
                       ? '#334155'
                       : 'transparent',
-                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/contacts' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>👥</span> Contacts
@@ -85,7 +146,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/app/campaigns"  // FIXED
+                href="/customer/app/campaigns"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -98,7 +159,6 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app/campaigns'
                       ? '#334155'
                       : 'transparent',
-                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/campaigns' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>🚀</span> Campaigns
@@ -106,7 +166,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/app/templates"  // FIXED
+                href="/customer/app/templates"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -119,7 +179,6 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app/templates'
                       ? '#334155'
                       : 'transparent',
-                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/templates' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>📝</span> Templates
@@ -127,7 +186,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/app/settings"  // FIXED
+                href="/customer/app/settings"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -139,7 +198,6 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app/settings'
                       ? '#334155'
                       : 'transparent',
-                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/settings' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>⚙️</span> Settings
@@ -161,18 +219,49 @@ export default function CustomerAppShell({
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Optional header */}
+        {/* TOP HEADER with Customer Name, Avatar, and Logout */}
         <header
           style={{
             padding: '16px 32px',
             backgroundColor: '#1e293b',
             borderBottom: '1px solid #334155',
             color: '#e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
           <h2 style={{ margin: 0, fontSize: '1.4rem' }}>
             {workspace?.name || 'Dashboard'}
           </h2>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Customer Name with Avatar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+              />
+              <span style={{ fontSize: '1rem' }}>{userName}</span>
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              style={{
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         {/* Page content */}
