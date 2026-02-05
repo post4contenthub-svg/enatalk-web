@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 interface CustomerAppShellProps {
   children: ReactNode;
-  workspace?: any; // optional, can be removed if not used
+  workspace?: any; // optional – can be removed if not used
 }
 
 export default function CustomerAppShell({
@@ -38,7 +38,7 @@ export default function CustomerAppShell({
           </h1>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation – FIXED LINKS */}
         <nav style={{ flex: 1, padding: '24px 16px' }}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             <li>
@@ -56,6 +56,7 @@ export default function CustomerAppShell({
                     typeof window !== 'undefined' && window.location.pathname === '/customer/app'
                       ? '#334155'
                       : 'transparent',
+                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>📊</span> Dashboard
@@ -63,7 +64,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/contacts"
+                href="/customer/app/contacts"  // FIXED
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -72,6 +73,11 @@ export default function CustomerAppShell({
                   textDecoration: 'none',
                   borderRadius: '6px',
                   marginBottom: '8px',
+                  backgroundColor:
+                    typeof window !== 'undefined' && window.location.pathname === '/customer/app/contacts'
+                      ? '#334155'
+                      : 'transparent',
+                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/contacts' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>👥</span> Contacts
@@ -79,7 +85,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/campaigns"
+                href="/customer/app/campaigns"  // FIXED
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -88,6 +94,11 @@ export default function CustomerAppShell({
                   textDecoration: 'none',
                   borderRadius: '6px',
                   marginBottom: '8px',
+                  backgroundColor:
+                    typeof window !== 'undefined' && window.location.pathname === '/customer/app/campaigns'
+                      ? '#334155'
+                      : 'transparent',
+                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/campaigns' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>🚀</span> Campaigns
@@ -95,7 +106,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/templates"
+                href="/customer/app/templates"  // FIXED
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -104,6 +115,11 @@ export default function CustomerAppShell({
                   textDecoration: 'none',
                   borderRadius: '6px',
                   marginBottom: '8px',
+                  backgroundColor:
+                    typeof window !== 'undefined' && window.location.pathname === '/customer/app/templates'
+                      ? '#334155'
+                      : 'transparent',
+                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/templates' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>📝</span> Templates
@@ -111,7 +127,7 @@ export default function CustomerAppShell({
             </li>
             <li>
               <Link
-                href="/customer/settings"
+                href="/customer/app/settings"  // FIXED
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -119,6 +135,11 @@ export default function CustomerAppShell({
                   color: '#e2e8f0',
                   textDecoration: 'none',
                   borderRadius: '6px',
+                  backgroundColor:
+                    typeof window !== 'undefined' && window.location.pathname === '/customer/app/settings'
+                      ? '#334155'
+                      : 'transparent',
+                  fontWeight: typeof window !== 'undefined' && window.location.pathname === '/customer/app/settings' ? 600 : 400,
                 }}
               >
                 <span style={{ marginRight: '12px' }}>⚙️</span> Settings
@@ -127,7 +148,7 @@ export default function CustomerAppShell({
           </ul>
         </nav>
 
-        {/* Bottom section – optional user info or logout */}
+        {/* Bottom section – workspace info */}
         <div style={{ padding: '20px', borderTop: '1px solid #334155' }}>
           <p style={{ fontSize: '0.9rem', margin: 0, color: '#94a3b8' }}>
             {workspace?.name || 'Workspace'}
