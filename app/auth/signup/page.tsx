@@ -26,9 +26,10 @@ export default function SignupPage() {
         credits: 500,  // Start with 500 free credits for trial
       });
       await supabase.from("user_profiles").insert({
-        user_id: data.user.id,
-        business_type,
-      });
+  user_id: data.user.id,
+  business_type: businessType,
+});
+
       window.location.href = "/dashboard";
     }
     setLoading(false);
