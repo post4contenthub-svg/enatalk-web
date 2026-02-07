@@ -11,21 +11,12 @@ type FieldDef = {
   type: string;
 };
 
-type Contact = {
-  id: string;
-  name: string;
-  phone: string;
-  custom_data: Record<string, any>;
-};
-
-export default function EditContactModal({
+export default function AddContactModal({
   tenantId,
-  contact,
   onClose,
   onSuccess,
 }: {
   tenantId: string;
-  contact: Contact;
   onClose: () => void;
   onSuccess?: () => void;
 }) {
@@ -46,21 +37,16 @@ export default function EditContactModal({
 
       if (data) {
         setFields(data);
-        // Initialize formData with contact values
-        const initialData: Record<string, string> = {
-          name: contact.name,
-          phone: contact.phone,
-        };
+        // Initialize formData with empty values for all fields
+        const initialData: Record<string, string> = {};
         data.forEach((f) => {
-          if (f.key !== "name" && f.key !== "phone") {
-            initialData[f.key] = contact.custom_data[f.key] || "";
-          }
+          initialData[f.key] = "";
         });
         setFormData(initialData);
       }
     }
     loadFields();
-  }, [tenantId, contact]);
+  }, [tenantId]);
 
   function handleChange(key: string, value: string) {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -77,7 +63,7 @@ export default function EditContactModal({
 
     setLoading(true);
 
-    // Separate system fields from custom
+    // Separate system fields (name, phone) from custom
     const customData: Record<string, string> = {};
     Object.keys(formData).forEach((key) => {
       if (key !== "name" && key !== "phone") {
@@ -85,17 +71,15 @@ export default function EditContactModal({
       }
     });
 
-    const { error } = await supabase
-      .from("tenant_contacts")
-      .update({
-        name: formData.name || "",
-        phone: formData.phone || "",
-        custom_data: customData,
-      })
-      .eq("id", contact.id);
+    const { error } = await supabase.from("tenant_contacts").insert({
+      tenant_id: tenantId,
+      name: formData.name || "",
+      phone: formData.phone || "",
+      custom_data: customData,
+    });
 
     if (error) {
-      alert(error.message || "Failed to update contact");
+      alert(error.message || "Failed to add contact");
       console.error(error);
     } else {
       onSuccess?.();
@@ -109,32 +93,28 @@ export default function EditContactModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Edit Contact</h2>
+          <h2 className="text-lg font-semibold text-white">New Contact</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white" aria-label="Close">
             ✕
           </button>
         </div>
 
         <div className="space-y-4">
-          {fields.length > 0 ? (
-            fields.map((f) => (
-              <div key={f.key}>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  {f.label} {f.required ? "*" : ""}
-                </label>
-                <input
-                  type={f.type}
-                  placeholder={`Enter ${f.label.toLowerCase()}`}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white"
-                  value={formData[f.key] || ""}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-slate-400">Loading fields...</p>
-          )}
+          {fields.map((f) => (
+            <div key={f.key}>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                {f.label} {f.required ? "*" : ""}
+              </label>
+              <input
+                type={f.type}  // Use field type (e.g., 'text', later add 'date' for DOB)
+                placeholder={`Enter ${f.label.toLowerCase()}`}
+                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white"
+                value={formData[f.key] || ""}
+                onChange={(e) => handleChange(f.key, e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          ))}
         </div>
 
         <div className="flex gap-3 pt-6">
@@ -150,7 +130,7 @@ export default function EditContactModal({
             disabled={loading}
             className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? "Updating..." : "Update Contact"}
+            {loading ? "Saving..." : "Save Contact"}
           </button>
         </div>
       </div>

@@ -1,115 +1,69 @@
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+"use client";
 
-import NewTemplateButton from "./NewTemplateButton";
-import TemplateActions from "./TemplateActions";
+import { useRouter } from "next/navigation";
 
-export default async function TemplatesPage() {
-  // 🔥 MUST await
-  const supabase = await createSupabaseServerClient();
+const TEMPLATE_CATEGORIES = [
+  { slug: "birthday", name: "Birthday", emoji: "🎂" },
+  { slug: "anniversary", name: "Anniversary", emoji: "💍" },
+  { slug: "promotion", name: "Promotion", emoji: "📢" },
+  { slug: "reminder", name: "Reminder", emoji: "🔔" },
+  { slug: "feedback", name: "Feedback", emoji: "⭐" },
+  { slug: "welcome", name: "Welcome", emoji: "👋" },
+  { slug: "order-update", name: "Order / Service Update", emoji: "📦" },
+  { slug: "thank-you", name: "Thank You", emoji: "🙏" },
+  { slug: "follow-up", name: "Follow-up", emoji: "⏰" },
 
-  // 🔐 Protect page
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // 🎉 NEW CATEGORY
+  {
+    slug: "festivals",
+    name: "Festivals & Special Days",
+    emoji: "🎉",
+  },
 
-  if (!session) {
-    redirect("/login");
-  }
+  // 🔒 Custom (Pro later)
+  {
+    slug: "custom",
+    name: "Custom",
+    emoji: "✨",
+    locked: true,
+  },
+];
 
-  const tenantId =
-    session.user.user_metadata?.tenant_id ??
-    session.user.id;
-
-  // 🔹 Fetch templates
-  const { data: templates, error } = await supabase
-    .from("templates")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+export default function TemplatesPage() {
+  const router = useRouter();
 
   return (
-    <div className="px-8 py-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-white">
-            Templates
-          </h1>
+    <div className="max-w-5xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-white">Templates</h1>
+        <p className="text-sm text-slate-400">
+          Choose a category to manage message templates
+        </p>
+      </div>
 
-          {tenantId && (
-            <NewTemplateButton tenantId={tenantId} />
-          )}
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {TEMPLATE_CATEGORIES.map((cat) => (
+          <button
+            key={cat.slug}
+            onClick={() =>
+              router.push(`/customer/app/templates/${cat.slug}`)
+            }
+            className="
+              flex items-center justify-between rounded-lg p-4
+              bg-slate-800 hover:bg-slate-700 border border-slate-700
+              text-white text-left
+            "
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{cat.emoji}</span>
+              <span className="font-medium">{cat.name}</span>
+            </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800 text-slate-300">
-              <tr>
-                <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Message Body
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-800">
-              {templates?.map((t) => (
-                <tr
-                  key={t.id}
-                  className="hover:bg-slate-800 align-top"
-                >
-                  <td className="px-4 py-3 font-medium text-white">
-                    {t.name}
-                  </td>
-
-                  <td className="px-4 py-3 text-slate-300">
-                    {t.category}
-                  </td>
-
-                  <td className="px-4 py-3 text-slate-400 whitespace-pre-wrap max-w-xl">
-                    {t.body_text}
-                  </td>
-
-                  <td className="px-4 py-3 text-slate-300">
-                    {t.status}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <TemplateActions
-                      templateId={t.id}
-                      initialBody={t.body}
-                    />
-                  </td>
-                </tr>
-              ))}
-
-              {templates?.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-6 text-center text-slate-400"
-                  >
-                    No templates found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            {cat.locked && (
+              <span className="text-xs text-yellow-400">🔒 Pro</span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

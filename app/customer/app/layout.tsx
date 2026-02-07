@@ -1,24 +1,12 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import CustomerAppShell from './CustomerAppShell';  // ← fixed
-import { redirect } from 'next/navigation';
+import CustomerAppShell from "./CustomerAppShell";
 
-export default async function CustomerAppLayout({
+export default function CustomerAppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/login');
-  }
-
-  // If you want to pass workspace (optional for now)
-  // const { data: workspace } = await ... fetch workspace ...
-
   return (
-    <CustomerAppShell /* workspace={workspace} */>
+    <CustomerAppShell>
       {children}
     </CustomerAppShell>
   );

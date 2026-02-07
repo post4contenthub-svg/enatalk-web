@@ -59,10 +59,87 @@ export default function SettingsPage() {
       console.error(error);
     } else {
       setFields(data || []);
+      // If no fields, seed defaults (runs only once per tenant)
+      if (data && data.length === 0) {
+        await seedDefaultFields();
+      }
     }
 
     setLoading(false);
   }
+
+  // New function: Seed default system fields with incremental sort_order
+async function seedDefaultFields() {
+  if (!tenantId) return;
+
+  const defaults = [
+    { key: "name", label: "Name", required: true, show_in_table: true, type: "text" },
+    { key: "phone", label: "Phone", required: true, show_in_table: true, type: "text" },
+    // Add more defaults if needed, e.g., { key: "email", label: "Email", ... }
+  ];
+
+  let currentMaxSortOrder = 0;
+
+  // Get current max sort_order (in case some fields exist but length was 0 - edge case)
+  const { data: maxData, error: maxError } = await supabase
+    .from("tenant_contact_fields")
+    .select("sort_order")
+    .eq("tenant_id", tenantId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (maxError) {
+    console.error("Failed to get max sort_order:", maxError);
+    alert("Failed to initialize defaults: " + (maxError.message || "Unknown error"));
+    return;
+  }
+
+  if (maxData && maxData.length > 0) {
+    currentMaxSortOrder = maxData[0].sort_order;
+  }
+
+  for (let i = 0; i < defaults.length; i++) {
+    const field = defaults[i];
+
+    // Check if the key already exists for this tenant
+    const { data: existing, error: existError } = await supabase
+      .from("tenant_contact_fields")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("key", field.key)
+      .limit(1);
+
+    if (existError) {
+      console.error("Failed to check existing field:", existError);
+      alert("Failed to check defaults: " + (existError.message || "Unknown error"));
+      return;
+    }
+
+    if (existing && existing.length > 0) {
+      console.log(`Default field "${field.key}" already exists, skipping.`);
+      continue; // Skip if exists
+    }
+
+    const { error } = await supabase.from("tenant_contact_fields").insert({
+      tenant_id: tenantId,
+      key: field.key,
+      label: field.label,
+      required: field.required,
+      show_in_table: field.show_in_table,
+      sort_order: currentMaxSortOrder + i + 1,  // Incremental based on current max
+      type: field.type,
+    });
+
+    if (error) {
+      console.error("Failed to seed default field:", error);
+      alert(`Failed to seed default field "${field.key}": ${error.message || 'Unknown error'}`);
+      return;  // Stop on error
+    }
+  }
+
+  // Reload after seeding
+  loadFields();
+}
 
   async function toggleShow(id: string, show: boolean) {
     const { error } = await supabase

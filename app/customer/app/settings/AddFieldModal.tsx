@@ -42,6 +42,19 @@ export default function AddFieldModal({
     try {
       setLoading(true);
 
+      // Optional: Pre-check for duplicate key (improves UX by avoiding insert error)
+      const { data: existing } = await supabase
+        .from("tenant_contact_fields")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("key", key)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        alert(`A field with key "${key}" already exists. Try a different label.`);
+        return;
+      }
+
       // Get current max sort_order for proper ordering
       const { data: maxData } = await supabase
         .from("tenant_contact_fields")
@@ -61,16 +74,11 @@ export default function AddFieldModal({
         required,
         show_in_table: showInTable,
         sort_order: nextSortOrder,
-        type: "text", // can be extended later
+        type: "text", // Can be extended later (e.g., via a select input)
       });
 
       if (error) {
-        if (error.code === "23505") {
-          // Unique violation (duplicate key)
-          alert(`A field with key "${key}" already exists. Try a different label.`);
-        } else {
-          alert(error.message || "Failed to create field");
-        }
+        alert(error.message || "Failed to create field");
         return;
       }
 
@@ -158,9 +166,21 @@ export default function AddFieldModal({
             <button
               onClick={handleSave}
               disabled={loading || !label.trim()}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+              className="relative flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
             >
-              {loading ? "Saving…" : "Save Field"}
+              {loading ? (
+                <>
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <svg className="h-5 w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </span>
+                  Saving…
+                </>
+              ) : (
+                "Save Field"
+              )}
             </button>
           </div>
         </div>
