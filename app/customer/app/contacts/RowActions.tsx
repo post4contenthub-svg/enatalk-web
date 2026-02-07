@@ -12,18 +12,18 @@ type FieldDef = {
 
 type Contact = {
   id: string;
-  name: string | null;
+  name: string;
   phone: string;
   tags: string[] | null;
   is_opted_out: boolean;
-  custom_fields: Record<string, any> | null;
+  custom_data: Record<string, any>;
   preferred_template_id: string | null;
 };
 
 export default function RowActions({
   contact,
   tenantId,
-  fieldDefs,
+  fieldDefs, // still used elsewhere if needed
 }: {
   contact: Contact;
   tenantId: string;
@@ -36,14 +36,7 @@ export default function RowActions({
 
   async function handleDelete() {
     if (busyDelete) return;
-
-    if (
-      !window.confirm(
-        "Delete this contact? This will remove it permanently."
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm("Delete this contact permanently?")) return;
 
     try {
       setBusyDelete(true);
@@ -60,7 +53,6 @@ export default function RowActions({
       const json = await res.json();
 
       if (!res.ok) {
-        console.error("Delete contact error:", json);
         alert(json.error || "Failed to delete contact");
         return;
       }
@@ -68,7 +60,6 @@ export default function RowActions({
       alert("Contact deleted ✅");
       window.location.reload();
     } catch (err: any) {
-      console.error(err);
       alert(err?.message || "Unexpected error");
     } finally {
       setBusyDelete(false);
@@ -77,7 +68,6 @@ export default function RowActions({
 
   return (
     <div className="flex flex-wrap gap-1">
-      {/* Existing send buttons, only if subscribed & has phone */}
       {!contact.is_opted_out && hasPhone && (
         <>
           <SendWhatsAppButton phone={contact.phone} tenantId={tenantId} />
@@ -85,7 +75,6 @@ export default function RowActions({
         </>
       )}
 
-      {/* Edit button opens modal */}
       <button
         type="button"
         onClick={() => setShowEdit(true)}
@@ -94,7 +83,6 @@ export default function RowActions({
         Edit
       </button>
 
-      {/* Delete button */}
       <button
         type="button"
         onClick={handleDelete}
@@ -104,12 +92,13 @@ export default function RowActions({
         {busyDelete ? "Deleting…" : "Delete"}
       </button>
 
-      {/* Edit modal */}
       {showEdit && (
         <EditContactModal
-          contact={contact}
+          contact={{
+            ...contact,
+            name: contact.name || "",
+          }}
           tenantId={tenantId}
-          fieldDefs={fieldDefs}
           onClose={() => setShowEdit(false)}
         />
       )}
