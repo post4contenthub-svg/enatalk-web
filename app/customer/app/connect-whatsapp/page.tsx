@@ -286,7 +286,7 @@ export default function ConnectWhatsAppPage() {
       <div className="fu fu4">
         <button
           onClick={handleConnect}
-          disabled={!sdkReady || status === "loading" || status === "saving"}
+          disabled={!sdkReady || (status as string) === "loading" || (status as string) === "saving"}
           style={{
             width: "100%", padding: "16px",
             background: sdkReady
