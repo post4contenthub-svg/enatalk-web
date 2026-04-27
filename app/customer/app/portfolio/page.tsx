@@ -2,7 +2,7 @@
 
 export default function CustomerPortfolioPage() {
   const business = {
-    name: "Lucy’s Creations",
+    name: "Lucy's Creations",
     industry: "Bakery & Cakes",
     whatsapp: "+91 XXXXXXX210",
     city: "Kolkata",
@@ -14,6 +14,8 @@ export default function CustomerPortfolioPage() {
     templates: 3,
     campaigns: 5,
   };
+
+  const birthdayTemplate = "🎉 Happy Birthday {{name}}! 🎂\nWishing you a wonderful year ahead.\n— " + business.name;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -38,7 +40,6 @@ export default function CustomerPortfolioPage() {
               {business.industry}
             </p>
           </div>
-
           <span className="rounded-full bg-emerald-600/20 text-emerald-400 px-3 py-1 text-xs font-medium">
             {business.plan} Plan
           </span>
@@ -81,16 +82,12 @@ export default function CustomerPortfolioPage() {
         )}
 
         <div className="mt-3 text-sm text-slate-200 whitespace-pre-line">
-          🎉 Happy Birthday {{name}}! 🎂
-          Wishing you a wonderful year ahead.
-          — {business.name}
+          {birthdayTemplate}
         </div>
       </div>
     </div>
   );
 }
-
-/* Reusable components */
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
