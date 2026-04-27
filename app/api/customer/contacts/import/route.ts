@@ -3,8 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function findPhoneKey(headers: string[]) {
   const possible = ["phone", "mobile", "phone number", "contact", "whatsapp"];
-
-  return headers.find((h) =>
+  return headers.find((h: string) =>
     possible.includes(h.toLowerCase().trim())
   );
 }
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ imported: 0 });
     }
 
-    const headers = lines[0].split(",").map((h) => h.trim());
+    const headers = lines[0].split(",").map((h: string) => h.trim());
 
     const phoneKey = findPhoneKey(headers);
 
@@ -43,10 +42,10 @@ export async function POST(req: Request) {
     const rows: any[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map((v) => v.trim());
+      const values = lines[i].split(",").map((v: string) => v.trim());
 
       const obj: Record<string, string> = {};
-      headers.forEach((h, idx) => {
+      headers.forEach((h: string, idx: number) => {
         obj[h] = values[idx] || "";
       });
 
