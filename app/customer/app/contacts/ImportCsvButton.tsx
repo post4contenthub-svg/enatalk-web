@@ -58,7 +58,7 @@ export default function ImportCsvButton({ tenantId, fieldDefs }: Props) {
       setFile(null);
 
       // Reload contacts to show new rows
-      window.location.reload();
+      window.dispatchEvent(new Event("contacts-updated"));
     } catch (err: any) {
       console.error(err);
       window.alert(err?.message || "Unexpected error during CSV import");

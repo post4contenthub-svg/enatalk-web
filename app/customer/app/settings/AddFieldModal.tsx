@@ -17,6 +17,8 @@ export default function AddFieldModal({
   const [label, setLabel] = useState("");
   const [required, setRequired] = useState(false);
   const [showInTable, setShowInTable] = useState(true);
+  const [fieldType, setFieldType] = useState("text");
+  const [useFor, setUseFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function makeKey(label: string) {
@@ -35,14 +37,14 @@ export default function AddFieldModal({
 
     const key = makeKey(label);
     if (!key) {
-      alert("Invalid label – cannot create a valid key");
+      alert("Invalid label – cannot create key");
       return;
     }
 
     try {
       setLoading(true);
 
-      // Optional: Pre-check for duplicate key (improves UX by avoiding insert error)
+      // Check duplicate key
       const { data: existing } = await supabase
         .from("tenant_contact_fields")
         .select("id")
@@ -51,11 +53,26 @@ export default function AddFieldModal({
         .limit(1);
 
       if (existing && existing.length > 0) {
-        alert(`A field with key "${key}" already exists. Try a different label.`);
+        alert(`Field "${key}" already exists`);
         return;
       }
 
-      // Get current max sort_order for proper ordering
+      // Prevent multiple same automation triggers
+      if (useFor) {
+        const { data: exists } = await supabase
+          .from("tenant_contact_fields")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("use_for", useFor)
+          .limit(1);
+
+        if (exists && exists.length > 0) {
+          alert(`Only one "${useFor}" field is allowed.`);
+          return;
+        }
+      }
+
+      // Sort order
       const { data: maxData } = await supabase
         .from("tenant_contact_fields")
         .select("sort_order")
@@ -66,15 +83,15 @@ export default function AddFieldModal({
       const nextSortOrder =
         (maxData && maxData.length > 0 ? maxData[0].sort_order : 0) + 1;
 
-      // Insert the new field
       const { error } = await supabase.from("tenant_contact_fields").insert({
         tenant_id: tenantId,
         key,
         label: label.trim(),
+        type: fieldType,
+        use_for: fieldType === "date" ? useFor : null,
         required,
         show_in_table: showInTable,
         sort_order: nextSortOrder,
-        type: "text", // Can be extended later (e.g., via a select input)
       });
 
       if (error) {
@@ -82,12 +99,11 @@ export default function AddFieldModal({
         return;
       }
 
-      // Success
-      onSuccess?.(); // Refresh parent list
+      onSuccess?.();
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      alert("Unexpected error while creating field");
+      alert("Unexpected error");
     } finally {
       setLoading(false);
     }
@@ -98,89 +114,129 @@ export default function AddFieldModal({
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Add New Field</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
             ✕
           </button>
         </div>
 
         <div className="space-y-5">
+          {/* Label */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
               Label
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              placeholder="e.g. Bike Model, City, Policy Number"
+              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white"
+              placeholder="e.g. DOB, Last Service Date"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               disabled={loading}
             />
             {label && (
               <p className="mt-2 text-xs text-slate-400">
-                Key: <code className="rounded bg-slate-800 px-1.5 py-0.5">{makeKey(label)}</code>
+                Key:{" "}
+                <code className="rounded bg-slate-800 px-1.5 py-0.5">
+                  {makeKey(label)}
+                </code>
               </p>
             )}
           </div>
 
+          {/* Field Type */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">
+              Field Type
+            </label>
+            <select
+              value={fieldType}
+              onChange={(e) => {
+                setFieldType(e.target.value);
+                if (e.target.value !== "date") setUseFor(null);
+              }}
+              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white"
+            >
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="date">Date</option>
+              <option value="phone">Phone</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+
+          {/* Automation Trigger */}
+          {fieldType === "date" && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Use this field for
+              </label>
+
+              <select
+                value={useFor ?? ""}
+                onChange={(e) => setUseFor(e.target.value || null)}
+                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2.5 text-white"
+              >
+                <option value="">None</option>
+
+                <optgroup label="Free automations">
+                  <option value="birthday">🎂 Birthday</option>
+                  <option value="anniversary">🎉 Anniversary</option>
+                  <option value="service">🔧 Last Service</option>
+                  <option value="purchase">🛒 Purchase Date</option>
+                  <option value="delivery">📦 Delivery Date</option>
+                </optgroup>
+
+                <optgroup label="Pro (Advanced)">
+                  <option value="custom" disabled>
+                    ⏰ Custom Reminder (Pro)
+                  </option>
+                </optgroup>
+              </select>
+
+              <p className="mt-2 text-xs text-slate-400">
+                Used to trigger automatic messages and reminders.
+              </p>
+            </div>
+          )}
+
+          {/* Required */}
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              id="required"
               checked={required}
               onChange={(e) => setRequired(e.target.checked)}
-              disabled={loading}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-600"
+              className="h-4 w-4 text-emerald-600"
             />
-            <label htmlFor="required" className="text-sm text-slate-300">
-              Required field
-            </label>
+            <label className="text-sm text-slate-300">Required field</label>
           </div>
 
+          {/* Show in table */}
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              id="showInTable"
               checked={showInTable}
               onChange={(e) => setShowInTable(e.target.checked)}
-              disabled={loading}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-600"
+              className="h-4 w-4 text-emerald-600"
             />
-            <label htmlFor="showInTable" className="text-sm text-slate-300">
-              Show as column in Contacts table
+            <label className="text-sm text-slate-300">
+              Show in Contacts table
             </label>
           </div>
 
+          {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
               onClick={onClose}
-              disabled={loading}
-              className="flex-1 rounded-lg border border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+              className="flex-1 rounded-lg border border-slate-600 px-4 py-2.5 text-sm text-slate-300"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={loading || !label.trim()}
-              className="relative flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-              {loading ? (
-                <>
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <svg className="h-5 w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  </span>
-                  Saving…
-                </>
-              ) : (
-                "Save Field"
-              )}
+              {loading ? "Saving…" : "Save Field"}
             </button>
           </div>
         </div>

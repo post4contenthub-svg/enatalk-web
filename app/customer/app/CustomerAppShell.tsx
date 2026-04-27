@@ -1,178 +1,313 @@
-'use client'
+"use client";
 
-import { ReactNode, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { useWhatsappStatus } from './hooks/useWhatsappStatus'
+import { ReactNode, useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useWhatsappStatus } from "./hooks/useWhatsappStatus";
 
-const DEV_MODE = true // 🔓 TEMP: allow Templates & Campaigns without WhatsApp
+export default function CustomerAppShell({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const supabase = createClient();
+  const waConnected = useWhatsappStatus();
 
-interface CustomerAppShellProps {
-  children: ReactNode
-  workspace?: {
-    name?: string
-  }
-}
+  const [userName, setUserName] = useState("Account");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [loading, setLoading] = useState(true);
+  const idleTimer = useRef<NodeJS.Timeout | null>(null);
 
-export default function CustomerAppShell({
-  children,
-  workspace,
-}: CustomerAppShellProps) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const supabase = createClient()
+  const NAV = "#0B1E3D";
+  const G = "#22C55E";
+  const GOLD = "#F5B800";
+  const BORDER = "rgba(255,255,255,0.08)";
+  const MUTED = "rgba(255,255,255,0.5)";
 
-  const whatsappConnected = useWhatsappStatus()
-
-  const [userName, setUserName] = useState('Customer')
-  const [avatarUrl, setAvatarUrl] = useState('/default-avatar.png')
-  const [idleTimer, setIdleTimer] = useState<NodeJS.Timeout | null>(null)
-
+  // ── Load user info (NO redirect) ──
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const u = session.user;
+        setUserName(
+          u.user_metadata?.full_name ||
+          u.email?.split("@")[0] ||
+          "Account"
+        );
+        if (u.user_metadata?.picture) setAvatarUrl(u.user_metadata.picture);
       }
+      // ✅ Always allow the page to load — no redirect
+      setLoading(false);
+    };
+    init();
+  }, []);
 
-      setUserName(
-        user.user_metadata?.full_name ||
-        user.email?.split('@')[0] ||
-        'Customer'
-      )
-
-      if (user.user_metadata?.picture) {
-        setAvatarUrl(user.user_metadata.picture)
-      }
-    }
-    fetchUser()
-  }, [supabase, router])
-
+  // ── Auto logout after 15 min idle ──
   useEffect(() => {
-    const LOGOUT_TIMEOUT = 10 * 60 * 1000
-    const resetTimer = () => {
-      if (idleTimer) clearTimeout(idleTimer)
-      const timer = setTimeout(async () => {
-        await supabase.auth.signOut()
-        router.push('/login')
-      }, LOGOUT_TIMEOUT)
-      setIdleTimer(timer)
-    }
-    const events = ['mousemove', 'keydown', 'scroll']
-    events.forEach(e => window.addEventListener(e, resetTimer))
-    resetTimer()
+    const TIMEOUT = 15 * 60 * 1000;
+    const reset = () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(async () => {
+        await supabase.auth.signOut();
+        router.push("/login");
+      }, TIMEOUT);
+    };
+    const events = ["mousemove", "keydown", "touchstart", "scroll"];
+    events.forEach(e => window.addEventListener(e, reset));
+    reset();
     return () => {
-      if (idleTimer) clearTimeout(idleTimer)
-      events.forEach(e => window.removeEventListener(e, resetTimer))
-    }
-  }, [supabase, router])
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   const navItems = [
-    { href: '/customer/app', label: 'Dashboard', emoji: '📊' },
-    { href: '/customer/app/contacts', label: 'Contacts', emoji: '👥' },
-    { href: '/customer/app/campaigns', label: 'Campaigns', emoji: '🚀', needsWhatsApp: true },
-    { href: '/customer/app/templates', label: 'Templates', emoji: '📝', needsWhatsApp: true },
-    { href: '/customer/app/settings', label: 'Settings', emoji: '⚙️' },
-    { href: '/customer/app/help', label: 'Help', emoji: '❓' },
-  ]
+    { href: "/customer/app",           label: "Dashboard", icon: "🏠" },
+    { href: "/customer/app/contacts",  label: "Contacts",  icon: "👥" },
+    { href: "/customer/app/campaigns", label: "Campaigns", icon: "🚀", needsWA: true },
+    { href: "/customer/app/templates", label: "Templates", icon: "📋", needsWA: true },
+    { href: "/customer/app/settings",  label: "Settings",  icon: "⚙️" },
+    { href: "/customer/app/help",      label: "Help",      icon: "❓" },
+  ];
+
+  const isActive = (href: string) =>
+    href === "/customer/app"
+      ? pathname === "/customer/app"
+      : pathname.startsWith(href);
+
+  const currentLabel =
+    navItems.find(n => isActive(n.href))?.label ?? "Dashboard";
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#060D1F", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14 }}>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin .8s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <p style={{ color: MUTED, fontSize: 13, fontFamily: "sans-serif" }}>Loading EnaTalk…</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <aside className="w-64 bg-slate-900 border-r border-slate-700 flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-3xl font-bold text-blue-400">EnaTalk</h1>
+    <div style={{ minHeight: "100vh", background: "#060D1F", display: "flex", fontFamily: "'DM Sans', sans-serif" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet" />
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        a { text-decoration: none; color: inherit; }
+
+        .ni {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; border-radius: 11px;
+          font-size: 14px; font-weight: 500;
+          color: rgba(255,255,255,0.55);
+          transition: all .18s; cursor: pointer;
+        }
+        .ni:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .ni.active { background: rgba(34,197,94,0.12); color: #22C55E; font-weight: 700; }
+        .ni.locked { opacity: 0.35; pointer-events: none; }
+
+        .wa-banner {
+          margin: 10px 10px 4px;
+          background: rgba(245,184,0,0.08);
+          border: 1px solid rgba(245,184,0,0.22);
+          border-radius: 13px; padding: 12px 13px;
+          display: flex; align-items: center; gap: 10px;
+          cursor: pointer; transition: background .2s;
+        }
+        .wa-banner:hover { background: rgba(245,184,0,0.14); }
+
+        /* Mobile bottom nav */
+        .mob-bar {
+          display: none;
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+          background: ${NAV};
+          border-top: 1px solid ${BORDER};
+          padding: 6px 0 max(env(safe-area-inset-bottom), 6px);
+        }
+        .mob-tab {
+          flex: 1; display: flex; flex-direction: column;
+          align-items: center; gap: 3px; padding: 6px 2px;
+          font-size: 10px; font-weight: 600;
+          font-family: 'DM Sans', sans-serif;
+          color: rgba(255,255,255,0.4);
+          background: none; border: none; cursor: pointer;
+          transition: color .15s;
+        }
+        .mob-tab.active { color: ${G}; }
+        .mob-tab.locked { color: rgba(255,255,255,0.18); }
+
+        @media(max-width: 768px) {
+          .desktop-sidebar { display: none !important; }
+          .mob-bar { display: flex !important; }
+          .main-area { padding-bottom: 72px !important; }
+          .mob-menu-btn { display: block !important; }
+          .wa-status-label { display: none !important; }
+        }
+        @media(min-width: 769px) {
+          .mob-menu-btn { display: none !important; }
+        }
+      `}</style>
+
+      {/* ══ DESKTOP SIDEBAR ══ */}
+      <aside className="desktop-sidebar" style={{
+        width: 232,
+        background: NAV,
+        borderRight: `1px solid ${BORDER}`,
+        display: "flex",
+        flexDirection: "column",
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+        flexShrink: 0,
+        zIndex: 10,
+      }}>
+        {/* Logo */}
+        <div style={{ padding: "18px 18px 14px", borderBottom: `1px solid ${BORDER}` }}>
+          <img
+            src="/enatalk-logo.webp"
+            alt="EnaTalk"
+            style={{ height: 30, objectFit: "contain" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
         </div>
 
-        <nav className="flex-1 p-6">
-          <ul className="space-y-1">
-            {navItems.map(item => {
-              const locked =
-                !DEV_MODE &&
-                item.needsWhatsApp &&
-                whatsappConnected === false
+        {/* WA not connected banner */}
+        {waConnected === false && (
+          <div className="wa-banner" onClick={() => router.push("/customer/app/connect-whatsapp")}>
+            <span style={{ fontSize: 18 }}>📱</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: GOLD }}>Connect WhatsApp</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>Required to send campaigns</div>
+            </div>
+            <span style={{ color: GOLD }}>→</span>
+          </div>
+        )}
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`
-                      flex items-center px-4 py-3 rounded-lg transition-colors
-                      ${
-                        locked
-                          ? 'text-slate-500 cursor-not-allowed'
-                          : 'text-slate-200 hover:bg-slate-800'
-                      }
-                      ${
-                        pathname === item.href
-                          ? 'bg-slate-800 font-medium'
-                          : ''
-                      }
-                    `}
-                  >
-                    <span className="mr-3 text-lg">{item.emoji}</span>
-                    {item.label}
-                    {locked && (
-                      <span className="ml-auto text-xs text-yellow-400">🔒</span>
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-
-          {!DEV_MODE && whatsappConnected === false && (
-            <Link
-              href="/customer/app/connect-whatsapp"
-              className="mt-4 block text-xs text-yellow-400 hover:text-yellow-300"
-            >
-              ⚠ Connect WhatsApp to unlock Campaigns & Templates →
-            </Link>
-          )}
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: "8px 10px", overflowY: "auto" }}>
+          {navItems.map(item => {
+            const locked = !!item.needsWA && waConnected === false;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={locked ? "/customer/app/connect-whatsapp" : item.href}
+                className={`ni ${active ? "active" : ""} ${locked ? "locked" : ""}`}
+              >
+                <span style={{ fontSize: 17 }}>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {locked && <span style={{ fontSize: 11, color: GOLD }}>🔒</span>}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="p-5 border-t border-slate-700 text-sm">
-          <p className="text-slate-300 font-medium">
-            {workspace?.name || 'Workspace'}
-          </p>
-          <p className="text-slate-500 mt-1">Free Plan</p>
+        {/* User + logout */}
+        <div style={{ padding: "12px 14px", borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            {avatarUrl ? (
+              <img src={avatarUrl} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(34,197,94,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: G, flexShrink: 0 }}>
+                {userName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</div>
+              <div style={{ fontSize: 11, color: MUTED }}>Free Plan</div>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{ width: "100%", padding: "8px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.18)", color: "#f87171", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+          >
+            Log out
+          </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col">
-        <header className="flex items-center justify-between px-8 py-4 bg-slate-900 border-b border-slate-700">
-          <h2 className="text-xl font-semibold">
-            {workspace?.name || 'Dashboard'}
-          </h2>
+      {/* ══ MAIN CONTENT ══ */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <img
-                src={avatarUrl}
-                className="w-8 h-8 rounded-full border border-slate-700"
-              />
-              <span>{userName}</span>
-            </div>
+        {/* Top header */}
+        <header style={{
+          height: 56,
+          background: NAV,
+          borderBottom: `1px solid ${BORDER}`,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 18px",
+          gap: 12,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}>
+          <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: "#fff" }}>
+            {currentLabel}
+          </span>
 
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-white"
-            >
-              Logout
-            </button>
+          {/* WA status pill */}
+          <button
+            onClick={() => !waConnected && router.push("/customer/app/connect-whatsapp")}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: waConnected ? "rgba(34,197,94,0.10)" : "rgba(245,184,0,0.10)",
+              border: `1px solid ${waConnected ? "rgba(34,197,94,0.22)" : "rgba(245,184,0,0.22)"}`,
+              borderRadius: 100, padding: "5px 12px",
+              fontSize: 12, fontWeight: 600,
+              color: waConnected ? G : GOLD,
+              cursor: waConnected ? "default" : "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: waConnected ? G : GOLD, display: "inline-block" }} />
+            <span className="wa-status-label">
+              {waConnected ? "WA Connected" : "Connect WhatsApp"}
+            </span>
+          </button>
+
+          {/* Avatar */}
+          <div onClick={() => router.push("/customer/app/settings")} style={{ cursor: "pointer", flexShrink: 0 }}>
+            {avatarUrl ? (
+              <img src={avatarUrl} style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(34,197,94,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: G }}>
+                {userName.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
         </header>
 
-        <main className="flex-1 p-8 bg-slate-950">
+        {/* Page content */}
+        <main className="main-area" style={{ flex: 1, padding: "24px 20px", overflowY: "auto" }}>
           {children}
         </main>
       </div>
+
+      {/* ══ MOBILE BOTTOM TAB BAR ══ */}
+      <nav className="mob-bar">
+        {navItems.slice(0, 5).map(item => {
+          const locked = !!item.needsWA && waConnected === false;
+          const active = isActive(item.href);
+          return (
+            <button
+              key={item.href}
+              className={`mob-tab ${active ? "active" : ""} ${locked ? "locked" : ""}`}
+              onClick={() => router.push(locked ? "/customer/app/connect-whatsapp" : item.href)}
+            >
+              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
-  )
+  );
 }

@@ -1,149 +1,98 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type FieldDef = {
-  key: string;
-};
+function findPhoneKey(headers: string[]) {
+  const possible = ["phone", "mobile", "phone number", "contact", "whatsapp"];
 
-function parseCsv(text: string) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (!lines.length) {
-    return { headers: [] as string[], rows: [] as string[][] };
-  }
-
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const cols = line.split(",");
-    // pad missing columns
-    while (cols.length < headers.length) cols.push("");
-    return cols.map((c) => c.trim());
-  });
-
-  return { headers, rows };
+  return headers.find((h) =>
+    possible.includes(h.toLowerCase().trim())
+  );
 }
 
 export async function POST(req: Request) {
+  const supabase = await createSupabaseServerClient();
+
   try {
-    const body = await req.json().catch(() => null);
+    const { csvText } = await req.json();
 
-    const tenantId = body?.tenantId as string | undefined;
-    const csvText = body?.csvText as string | undefined;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!tenantId || !csvText) {
-      return NextResponse.json(
-        { error: "Missing tenantId or csvText" },
-        { status: 400 }
-      );
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { headers, rows } = parseCsv(csvText);
+    const tenantId = user.id;
 
-    if (!headers.length) {
-      return NextResponse.json(
-        { error: "CSV is empty or could not be parsed" },
-        { status: 400 }
-      );
+    const lines = csvText.split("\n").filter(Boolean);
+    if (lines.length < 2) {
+      return NextResponse.json({ imported: 0 });
     }
 
-    const phoneIndex = headers.indexOf("phone");
-    if (phoneIndex === -1) {
-      return NextResponse.json(
-        { error: 'CSV must have a "phone" column' },
-        { status: 400 }
-      );
+    const headers = lines[0].split(",").map((h) => h.trim());
+
+    const phoneKey = findPhoneKey(headers);
+
+    if (!phoneKey) {
+      return NextResponse.json({
+        error: "No phone column found in CSV",
+      }, { status: 400 });
     }
 
-    // Load valid custom field keys for this tenant
-    const { data: fieldDefs, error: fieldErr } = await supabaseAdmin
-      .from("contact_field_definitions")
-      .select("key")
-      .eq("tenant_id", tenantId);
+    const rows: any[] = [];
 
-    if (fieldErr) {
-      console.error("field defs load error", fieldErr);
-      return NextResponse.json(
-        { error: "Failed to load field definitions" },
-        { status: 500 }
-      );
-    }
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",").map((v) => v.trim());
 
-    const validCustomKeys = new Set(
-      (fieldDefs as FieldDef[]).map((f) => f.key)
-    );
-    // name/phone are top-level, not custom_fields
-    validCustomKeys.delete("name");
-    validCustomKeys.delete("phone");
-
-    const payload: any[] = [];
-    let skipped = 0;
-
-    for (const row of rows) {
-      const phoneRaw = (row[phoneIndex] || "").replace(/\s+/g, "");
-      if (!phoneRaw) {
-        skipped++;
-        continue;
-      }
-
-      // Map headers → values
-      const record: Record<string, string> = {};
-      headers.forEach((h, i) => {
-        record[h] = row[i] ?? "";
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        obj[h] = values[idx] || "";
       });
 
-      const name = (record["name"] || "").trim() || null;
+      let phone = obj[phoneKey];
 
-      const custom_fields: Record<string, any> = {};
-      for (const key of validCustomKeys) {
-        if (record[key] && record[key].trim() !== "") {
-          custom_fields[key] = record[key].trim();
-        }
+      if (!phone) continue;
+
+      // Clean number
+      phone = phone.replace(/\D/g, "");
+
+      if (phone.startsWith("91") && phone.length === 12) {
+        phone = phone.slice(2);
       }
 
-      payload.push({
+      const name =
+        obj["Name"] ||
+        obj["name"] ||
+        obj["Business Name"] ||
+        "";
+
+      delete obj[phoneKey];
+
+      rows.push({
         tenant_id: tenantId,
-        phone: phoneRaw,
         name,
-        custom_fields: Object.keys(custom_fields).length
-          ? custom_fields
-          : null,
+        phone,
+        custom_data: obj,
       });
     }
 
-    if (!payload.length) {
-      return NextResponse.json(
-        { imported: 0, skipped },
-        { status: 200 }
-      );
+    if (rows.length === 0) {
+      return NextResponse.json({ imported: 0 });
     }
 
-    // Upsert by (tenant_id, phone) so importing same CSV again updates
-    const { error: insertErr } = await supabaseAdmin
-      .from("contacts")
-      .upsert(payload, {
-        onConflict: "tenant_id,phone",
-      });
+    const { error } = await supabase
+      .from("tenant_contacts")
+      .insert(rows);
 
-    if (insertErr) {
-      console.error("contacts import error", insertErr);
-      return NextResponse.json(
-        { error: "Failed to insert contacts" },
-        { status: 500 }
-      );
+    if (error) {
+      console.error(error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(
-      { imported: payload.length, skipped },
-      { status: 200 }
-    );
-  } catch (err: any) {
-    console.error("contacts import route error", err);
-    return NextResponse.json(
-      { error: err?.message || "Unexpected error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ imported: rows.length });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Import failed" }, { status: 500 });
   }
 }
