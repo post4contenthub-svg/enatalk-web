@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,12 +12,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
+    const apiKey = process.env.RESEND_API_KEY;
+
+    // If no API key, log and return success silently (dev/build mode)
+    if (!apiKey) {
+      console.warn("RESEND_API_KEY not set — skipping email send");
+      return NextResponse.json({ success: true });
+    }
+
+    // Lazy import so Resend is never instantiated at module load time
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+
     const teamHtml = [
       '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">',
       '<h2 style="color:#16A34A;margin-bottom:4px;">New contact form submission</h2>',
       '<p style="color:#6b7280;font-size:14px;margin-bottom:24px;">EnaTalk Contact Form</p>',
       '<table style="width:100%;border-collapse:collapse;">',
-      '<tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;width:100px;font-size:14px;">Name</td>',
+      '<tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:100px;">Name</td>',
       '<td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;font-weight:600;">' + name + '</td></tr>',
       '<tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">Email</td>',
       '<td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;"><a href="mailto:' + email + '" style="color:#16A34A;">' + email + '</a></td></tr>',
