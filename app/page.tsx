@@ -442,7 +442,7 @@ export default function LandingPage() {
           <img
             src="/enatalk-logo.webp"
             alt="EnaTalk"
-            style={{height:56,width:"auto",objectFit:"contain",maxWidth:200,display:"block",mixBlendMode:"screen"}}
+            style={{height:100,width:"auto",objectFit:"contain",maxWidth:200,display:"block",mixBlendMode:"screen"}}
             onError={e=>{
               const el = e.target as HTMLImageElement;
               el.style.display="none";
@@ -1160,7 +1160,7 @@ export default function LandingPage() {
       <footer style={{background:"#020810",borderTop:"1px solid rgba(255,255,255,0.05)",padding:"36px 28px",position:"relative",zIndex:1}}>
         <div className="w" style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:32}}>
           <div>
-            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:56,width:"auto",objectFit:"contain",maxWidth:180,display:"block",marginBottom:10,mixBlendMode:"screen"}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
+            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:100,width:"auto",objectFit:"contain",maxWidth:180,display:"block",marginBottom:10,mixBlendMode:"screen"}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
             <p style={{fontSize:12,color:"rgba(255,255,255,0.28)",lineHeight:1.7}}>Official WhatsApp Business API · Made in India 🇮🇳</p>
             <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginTop:4}}>Ramkrishna Upanibesh Jadavpur, Kolkata, West Bengal 700092</p>
           </div>
