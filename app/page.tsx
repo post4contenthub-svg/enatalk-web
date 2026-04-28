@@ -141,14 +141,14 @@ export default function LandingPage() {
 
   // ── LOGO COMPONENT — same style used in both nav and footer ──
   const logoStyle: React.CSSProperties = {
-    height: 56,
+    height: 100,
     width: "auto",
     objectFit: "contain",
     maxWidth: 160,
     display: "block",
   };
 
-  function Logo({ height = 56 }: { height?: number }) {
+  function Logo({ height = 100 }: { height?: number }) {
     return (
       <img
         src="/enatalk-logo.webp"
@@ -349,7 +349,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── NAV ── */}
-      <nav style={{ position: "sticky", top: 0, zIndex: 200, background: scrolled ? "rgba(4,11,28,0.92)" : "rgba(4,11,28,0.6)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all .35s" }}>
+      <nav style={{ position: "sticky", top: 0, zIndex: 200, background: scrolled ? "rgba(4,11,28,0.96)" : "rgba(4,11,28,0.88)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all .35s" }}>
         <div className="w" style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
           {/* ── NAV LOGO — same as footer ── */}
@@ -358,7 +358,7 @@ export default function LandingPage() {
               src="/enatalk-logo.webp"
               alt="EnaTalk"
               style={{
-                height: 56,
+                height: 100,
                 width: "auto",
                 objectFit: "contain",
                 maxWidth: 160,
@@ -799,7 +799,7 @@ export default function LandingPage() {
             <img
               src="/enatalk-logo.webp"
               alt="EnaTalk"
-              style={{ height: 56, width: "auto", objectFit: "contain", maxWidth: 160, display: "block", marginBottom: 10, filter: "drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)" }}
+              style={{ height: 100, width: "auto", objectFit: "contain", maxWidth: 160, display: "block", marginBottom: 10, filter: "drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)" }}
               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", lineHeight: 1.7 }}>Official WhatsApp Business API · Made in India 🇮🇳</p>
