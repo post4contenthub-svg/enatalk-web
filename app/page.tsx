@@ -438,29 +438,18 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav style={{position:"sticky",top:0,zIndex:200,background:scrolled?"rgba(4,11,28,0.92)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?"1px solid rgba(255,255,255,0.06)":"none",transition:"all .35s"}}>
         <div className="w" style={{height:66,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <a href="/" style={{textDecoration:"none",display:"flex",alignItems:"center",gap:10}}>
-  {/* Icon — blue circle + gold ring + dot */}
-  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Gold outer ring */}
-    <path d="M22 4 A18 18 0 1 1 38 31" stroke="#F5B800" strokeWidth="3.5" strokeLinecap="round" fill="none"/>
-    {/* Blue speech bubble circle */}
-    <circle cx="22" cy="21" r="13" fill="#1B4B8A"/>
-    {/* Bubble tail */}
-    <path d="M16 31 Q12 37 10 40 Q16 36 22 33 Z" fill="#1B4B8A"/>
-    {/* Gold dot */}
-    <circle cx="19" cy="17" r="3" fill="#F5B800"/>
-  </svg>
-  {/* Wordmark */}
-  <span style={{
-    fontFamily:"'Bricolage Grotesque',sans-serif",
-    fontWeight:800,
-    fontSize:26,
-    letterSpacing:"-0.8px",
-    lineHeight:1,
-  }}>
-    <span style={{color:"#fff"}}>Ena</span>
-    <span style={{color:"#F5B800"}}>talk</span>
-  </span>
+          <a href="/" style={{textDecoration:"none",display:"flex",alignItems:"center",gap:8}}>
+  <img
+    src="/enatalk-logo.webp"
+    alt="EnaTalk"
+    style={{
+      height:80,
+      width:"auto",
+      objectFit:"contain",
+      display:"block",
+      filter:"drop-shadow(0 0 8px rgba(245,184,0,0.4)) drop-shadow(0 0 16px rgba(27,75,138,0.3))",
+    }}
+  />
 </a>
           <div className="nav-mid" style={{display:"flex",gap:36,alignItems:"center"}}>
             {[["Features","#features"],["How it works","#how-it-works"],["Pricing","#pricing"],["Compliance","#compliance"],["FAQ","#faq"]].map(([l,h])=>(
