@@ -20,6 +20,7 @@ export default function LandingPage() {
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [activePolicy, setActivePolicy] = useState<"privacy" | "terms" | null>(null);
+  const [pricingAnnual, setPricingAnnual] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -263,6 +264,22 @@ export default function LandingPage() {
     );
   }
 
+
+  function PricingFeatures({ items, highlight=false }: { items:{t:string,s:boolean}[], highlight?:boolean }) {
+    return (
+      <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
+        {items.map((item,i)=>(
+          <li key={i} style={{display:"flex",alignItems:"center",gap:10,fontSize:13,color:item.s?(highlight?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.65)"):"rgba(255,255,255,0.2)"}}>
+            <span style={{fontSize:14,flexShrink:0,color:item.s?(highlight?"#22C55E":"#22C55E"):"rgba(255,255,255,0.15)"}}>
+              {item.s?"✓":"✕"}
+            </span>
+            <span style={{textDecoration:item.s?"none":"line-through"}}>{item.t}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   // Policy Modal
   function PolicyModal() {
     if (!activePolicy) return null;
@@ -421,9 +438,23 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav style={{position:"sticky",top:0,zIndex:200,background:scrolled?"rgba(4,11,28,0.92)":"transparent",backdropFilter:scrolled?"blur(20px)":"none",borderBottom:scrolled?"1px solid rgba(255,255,255,0.06)":"none",transition:"all .35s"}}>
         <div className="w" style={{height:66,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:34,objectFit:"contain"}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
+          <div style={{display:"flex",alignItems:"center"}}>
+          <img
+            src="/enatalk-logo.png"
+            alt="EnaTalk"
+            style={{height:48,width:"auto",objectFit:"contain",maxWidth:180,display:"block"}}
+            onError={e=>{
+              const el = e.target as HTMLImageElement;
+              el.style.display="none";
+              const span = document.createElement("span");
+              span.innerHTML = "Ena<span style=\"color:#22C55E\">Talk</span>";
+              span.style.cssText = "font-family:\'Bricolage Grotesque\',sans-serif;font-weight:800;font-size:24px;color:#fff;letter-spacing:-0.5px";
+              el.parentNode?.insertBefore(span, el);
+            }}
+          />
+        </div>
           <div className="nav-mid" style={{display:"flex",gap:36,alignItems:"center"}}>
-            {[["Features","#features"],["How it works","#how-it-works"],["Compliance","#compliance"],["FAQ","#faq"]].map(([l,h])=>(
+            {[["Features","#features"],["How it works","#how-it-works"],["Pricing","#pricing"],["Compliance","#compliance"],["FAQ","#faq"]].map(([l,h])=>(
               <a key={l} href={h} className="nav-link">{l}</a>
             ))}
             {/* Legal dropdown */}
@@ -841,6 +872,239 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── PRICING ── */}
+      <section id="pricing" className="sec" style={{position:"relative",zIndex:1,background:"rgba(255,255,255,0.012)",borderTop:"1px solid rgba(255,255,255,0.05)",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+        <div className="w">
+
+          {/* Header */}
+          <div style={{textAlign:"center",marginBottom:52}}>
+            <span className="pill">Pricing</span>
+            <h2 className="nt" style={{fontSize:"clamp(28px,3.8vw,46px)",marginTop:18,marginBottom:14}}>
+              Simple pricing.{" "}
+              <span style={{background:`linear-gradient(135deg,${G},#34D399)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>No surprises.</span>
+            </h2>
+            <p style={{fontSize:15,color:"rgba(255,255,255,0.48)",maxWidth:500,margin:"0 auto 28px",lineHeight:1.8}}>
+              WhatsApp message costs passed through at <strong style={{color:"#fff"}}>zero markup</strong>. You pay exactly what Meta charges.
+            </p>
+
+            {/* Toggle */}
+            <div style={{display:"inline-flex",alignItems:"center",gap:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:100,padding:"6px 20px"}}>
+              <button onClick={()=>setPricingAnnual(false)} style={{fontSize:13,fontWeight:700,padding:"6px 16px",borderRadius:100,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",background:!pricingAnnual?"#fff":"transparent",color:!pricingAnnual?"#040B1C":"rgba(255,255,255,0.45)",transition:"all .2s"}}>Monthly</button>
+              <button onClick={()=>setPricingAnnual(true)} style={{fontSize:13,fontWeight:700,padding:"6px 16px",borderRadius:100,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",background:pricingAnnual?"linear-gradient(135deg,#22C55E,#16A34A)":"transparent",color:pricingAnnual?"#fff":"rgba(255,255,255,0.45)",transition:"all .2s",boxShadow:pricingAnnual?"0 4px 12px rgba(34,197,94,0.35)":"none"}}>
+                Annual <span style={{fontSize:11,background:"rgba(255,255,255,0.15)",padding:"1px 6px",borderRadius:100,marginLeft:4}}>Save 20%</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Plan cards */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16,alignItems:"start",marginBottom:40}}>
+
+            {[
+              {
+                name:"Free", price:0, annualPrice:0,
+                desc:"Try EnaTalk with no commitment",
+                cta:"Start Free", ctaStyle:"ghost", popular:false,
+                usage:[
+                  {label:"Messages / month", val:"500"},
+                  {label:"Contacts", val:"50"},
+                  {label:"WhatsApp numbers", val:"1"},
+                  {label:"Team members", val:"1"},
+                  {label:"Broadcast campaigns", val:"—"},
+                  {label:"API calls / month", val:"—"},
+                ],
+                features:[
+                  {t:"Campaign builder (basic)", on:true},
+                  {t:"5 message templates", on:true},
+                  {t:"Manual contact add", on:true},
+                  {t:"EnaTalk branding", on:true},
+                  {t:"Birthday automation", on:false},
+                  {t:"CSV import", on:false},
+                  {t:"Analytics dashboard", on:false},
+                  {t:"Webhooks & API", on:false},
+                  {t:"Priority support", on:false},
+                ],
+              },
+              {
+                name:"Starter", price:299, annualPrice:239,
+                desc:"For solo shop owners & freelancers",
+                cta:"Start 14-day Trial", ctaStyle:"ghost", popular:false,
+                usage:[
+                  {label:"Messages / month", val:"3,000"},
+                  {label:"Contacts", val:"500"},
+                  {label:"WhatsApp numbers", val:"1"},
+                  {label:"Team members", val:"2"},
+                  {label:"Broadcast campaigns", val:"5 / mo"},
+                  {label:"API calls / month", val:"10,000"},
+                ],
+                features:[
+                  {t:"Campaign builder", on:true},
+                  {t:"20 message templates", on:true},
+                  {t:"CSV import (500 rows)", on:true},
+                  {t:"Birthday automation", on:true},
+                  {t:"Basic analytics", on:true},
+                  {t:"Hindi & regional languages", on:true},
+                  {t:"Webhooks & API", on:false},
+                  {t:"Team inbox", on:false},
+                  {t:"Priority support", on:false},
+                ],
+              },
+              {
+                name:"Growth", price:799, annualPrice:639,
+                desc:"For growing businesses & small chains",
+                cta:"Start 14-day Trial", ctaStyle:"primary", popular:true,
+                usage:[
+                  {label:"Messages / month", val:"10,000"},
+                  {label:"Contacts", val:"5,000"},
+                  {label:"WhatsApp numbers", val:"2"},
+                  {label:"Team members", val:"5"},
+                  {label:"Broadcast campaigns", val:"Unlimited"},
+                  {label:"API calls / month", val:"1,00,000"},
+                ],
+                features:[
+                  {t:"Advanced campaign builder", on:true},
+                  {t:"Unlimited templates", on:true},
+                  {t:"CSV import (unlimited)", on:true},
+                  {t:"Birthday & festival automation", on:true},
+                  {t:"Full analytics + reports", on:true},
+                  {t:"Hindi & regional languages", on:true},
+                  {t:"Webhooks & REST API", on:true},
+                  {t:"Shared team inbox", on:true},
+                  {t:"Email support (24hr)", on:true},
+                ],
+              },
+              {
+                name:"Pro", price:1499, annualPrice:1199,
+                desc:"For multi-location businesses & enterprises",
+                cta:"Start 14-day Trial", ctaStyle:"ghost", popular:false,
+                usage:[
+                  {label:"Messages / month", val:"Unlimited"},
+                  {label:"Contacts", val:"Unlimited"},
+                  {label:"WhatsApp numbers", val:"5"},
+                  {label:"Team members", val:"Unlimited"},
+                  {label:"Broadcast campaigns", val:"Unlimited"},
+                  {label:"API calls / month", val:"Unlimited"},
+                ],
+                features:[
+                  {t:"Everything in Growth", on:true},
+                  {t:"Advanced automation flows", on:true},
+                  {t:"Multi-number management", on:true},
+                  {t:"Custom integrations", on:true},
+                  {t:"Analytics export (CSV/PDF)", on:true},
+                  {t:"Role-based team access", on:true},
+                  {t:"Dedicated account manager", on:true},
+                  {t:"WhatsApp priority support", on:true},
+                  {t:"SLA guarantee", on:true},
+                ],
+              },
+            ].map((plan)=>{
+              const price = pricingAnnual ? plan.annualPrice : plan.price;
+              const isPrimary = plan.ctaStyle === "primary";
+              return (
+                <div key={plan.name} style={{
+                  background: plan.popular ? "linear-gradient(160deg,rgba(34,197,94,0.09),rgba(34,197,94,0.03))" : "rgba(255,255,255,0.025)",
+                  border: plan.popular ? "1.5px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  borderRadius:24,padding:"28px 24px",
+                  position:"relative",
+                  transform: plan.popular ? "translateY(-8px)" : "none",
+                  boxShadow: plan.popular ? "0 24px 60px rgba(34,197,94,0.10)" : "none",
+                }}>
+                  {plan.popular && (
+                    <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#22C55E,#16A34A)",color:"#fff",fontSize:10,fontWeight:800,padding:"5px 14px",borderRadius:100,whiteSpace:"nowrap",letterSpacing:"0.06em",boxShadow:"0 4px 14px rgba(34,197,94,0.4)"}}>
+                      ✦ MOST POPULAR
+                    </div>
+                  )}
+
+                  {/* Plan name & price */}
+                  <div style={{marginBottom:20}}>
+                    <div style={{fontSize:11,fontWeight:700,color:plan.popular?"#22C55E":"rgba(255,255,255,0.4)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>{plan.name}</div>
+                    <div style={{display:"flex",alignItems:"flex-end",gap:4,marginBottom:6}}>
+                      {price === 0 ? (
+                        <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,fontSize:42,color:"#fff",letterSpacing:"-2px",lineHeight:1}}>Free</span>
+                      ) : (
+                        <>
+                          <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,fontSize:42,color:"#fff",letterSpacing:"-2px",lineHeight:1}}>₹{price.toLocaleString("en-IN")}</span>
+                          <span style={{fontSize:13,color:"rgba(255,255,255,0.38)",marginBottom:6}}>/mo</span>
+                        </>
+                      )}
+                    </div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,0.32)",marginBottom:8}}>
+                      {price === 0 ? "No credit card required" : pricingAnnual ? "billed annually" : "billed monthly"}
+                    </div>
+                    <div style={{fontSize:13,color:"rgba(255,255,255,0.48)",lineHeight:1.6}}>{plan.desc}</div>
+                  </div>
+
+                  {/* CTA */}
+                  <a href="https://app.enatalk.com/login" style={{
+                    display:"block",textAlign:"center",padding:"12px",borderRadius:12,
+                    fontSize:13,fontWeight:700,textDecoration:"none",marginBottom:24,
+                    background: isPrimary ? "linear-gradient(135deg,#22C55E,#16A34A)" : "rgba(255,255,255,0.06)",
+                    border: isPrimary ? "none" : "1px solid rgba(255,255,255,0.12)",
+                    color:"#fff",
+                    boxShadow: isPrimary ? "0 6px 20px rgba(34,197,94,0.35)" : "none",
+                  }}>{plan.cta}</a>
+
+                  {/* Usage specs */}
+                  <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Usage limits</div>
+                    {plan.usage.map((u,i)=>(
+                      <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<plan.usage.length-1?"1px solid rgba(255,255,255,0.05)":"none"}}>
+                        <span style={{fontSize:12,color:"rgba(255,255,255,0.42)"}}>{u.label}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:u.val==="—"?"rgba(255,255,255,0.2)":plan.popular?"#22C55E":"#fff"}}>{u.val}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Features */}
+                  <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:12}}>Features included</div>
+                  <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:8}}>
+                    {plan.features.map((f,i)=>(
+                      <li key={i} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:13,color:f.on?(plan.popular?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.65)"):"rgba(255,255,255,0.2)"}}>
+                        <span style={{fontSize:13,flexShrink:0,marginTop:1,color:f.on?(plan.popular?"#22C55E":"rgba(34,197,94,0.7)"):"rgba(255,255,255,0.15)",fontWeight:700}}>{f.on?"✓":"✕"}</span>
+                        <span style={{textDecoration:f.on?"none":"line-through",lineHeight:1.5}}>{f.t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* WhatsApp message cost explainer */}
+          <div style={{background:"rgba(245,184,0,0.05)",border:"1px solid rgba(245,184,0,0.16)",borderRadius:16,padding:"20px 24px",display:"flex",gap:16,alignItems:"flex-start",maxWidth:800,margin:"0 auto 28px"}}>
+            <span style={{fontSize:20,flexShrink:0}}>💡</span>
+            <div>
+              <div style={{fontWeight:700,fontSize:14,color:GOLD,marginBottom:6}}>WhatsApp message costs — billed separately at zero markup</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginTop:8}}>
+                {[
+                  {type:"Marketing",rate:"~₹0.58",desc:"Promotions & campaigns"},
+                  {type:"Utility",rate:"~₹0.14",desc:"Order updates, reminders"},
+                  {type:"Authentication",rate:"~₹0.12",desc:"OTPs & verifications"},
+                  {type:"Service",rate:"Free",desc:"Customer replies within 24hr"},
+                ].map(m=>(
+                  <div key={m.type} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 14px"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:2}}>{m.type}</div>
+                    <div style={{fontSize:16,fontWeight:700,color:"#fff",fontFamily:"'Bricolage Grotesque',sans-serif"}}>{m.rate}<span style={{fontSize:11,color:"rgba(255,255,255,0.35)",fontWeight:400}}> /conversation</span></div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2}}>{m.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Competitor strip */}
+          <div style={{textAlign:"center",padding:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12}}>
+            <p style={{fontSize:13,color:"rgba(255,255,255,0.35)",marginBottom:4}}>How we compare</p>
+            <div style={{display:"flex",justifyContent:"center",gap:32,flexWrap:"wrap"}}>
+              <span style={{fontSize:13,color:"rgba(255,255,255,0.3)"}}>Wati <span style={{textDecoration:"line-through"}}>₹2,399/mo</span></span>
+              <span style={{fontSize:13,color:"rgba(255,255,255,0.3)"}}>AiSensy <span style={{textDecoration:"line-through"}}>₹999/mo</span></span>
+              <span style={{fontSize:14,color:"#22C55E",fontWeight:700}}>EnaTalk from ₹0 →</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+
       {/* ── FAQ ── */}
       <section id="faq" className="sec" style={{position:"relative",zIndex:1}}>
         <div className="w">
@@ -896,7 +1160,7 @@ export default function LandingPage() {
       <footer style={{background:"#020810",borderTop:"1px solid rgba(255,255,255,0.05)",padding:"36px 28px",position:"relative",zIndex:1}}>
         <div className="w" style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:32}}>
           <div>
-            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:30,objectFit:"contain",marginBottom:10}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
+            <img src="/enatalk-logo.png" alt="EnaTalk" style={{height:36,width:"auto",objectFit:"contain",maxWidth:140,display:"block",marginBottom:10}} onError={e=>{(e.target as HTMLImageElement).style.display="none"}}/>
             <p style={{fontSize:12,color:"rgba(255,255,255,0.28)",lineHeight:1.7}}>Official WhatsApp Business API · Made in India 🇮🇳</p>
             <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginTop:4}}>Ramkrishna Upanibesh Jadavpur, Kolkata, West Bengal 700092</p>
           </div>
