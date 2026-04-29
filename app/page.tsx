@@ -348,7 +348,7 @@ export default function LandingPage() {
         <div className="w" style={{height:64,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           {/* LOGO */}
           <a href="/" style={{textDecoration:"none",display:"flex",alignItems:"center",flexShrink:0}}>
-            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:52,width:"auto",objectFit:"contain",display:"block",filter:"drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:80,width:"auto",objectFit:"contain",display:"block",filter:"drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
           </a>
 
           {/* Desktop nav links */}
@@ -800,7 +800,7 @@ export default function LandingPage() {
       <footer style={{background:"#020810",borderTop:"1px solid rgba(255,255,255,0.05)",padding:"40px 24px",position:"relative",zIndex:1}}>
         <div className="w" style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:32}}>
           <div style={{minWidth:200}}>
-            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:56,width:"auto",objectFit:"contain",maxWidth:160,display:"block",marginBottom:12,filter:"drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            <img src="/enatalk-logo.webp" alt="EnaTalk" style={{height:80,width:"auto",objectFit:"contain",maxWidth:160,display:"block",marginBottom:12,filter:"drop-shadow(0 0 10px rgba(245,184,0,0.5)) drop-shadow(0 0 20px rgba(27,75,138,0.4)) brightness(1.15)"}} onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
             <p style={{fontSize:12,color:"rgba(255,255,255,0.28)",lineHeight:1.7}}>Official WhatsApp Business API · Made in India 🇮🇳</p>
             <p style={{fontSize:11,color:"rgba(255,255,255,0.2)",marginTop:4}}>Ramkrishna Upanibesh Jadavpur,<br/>Kolkata, West Bengal 700092</p>
           </div>
