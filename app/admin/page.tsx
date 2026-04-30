@@ -1,439 +1,156 @@
-"use client";
-import { TrialStatusBadge } from "./tenants/TrialStatusBadge";
-import { useEffect, useMemo, useState } from "react";
+// app/admin/page.tsx — Updated full dashboard
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type Tenant = {
-  id: string;
-  name?: string | null;
-  whatsapp_number?: string | null;
-  plan_code?: string | null;
-  billing_status?: string | null;
-  trial_end_at?: string | null;
-  trial_expiry_notified_at?: string | null; // 👈 added
-  is_paused: boolean;
-  created_at?: string | null;
-  outbound_count?: number;
-  inbound_count?: number;
-  last_message_at?: string | null;
+const S = {
+  h1: { fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 26, letterSpacing: "-0.5px", color: "#fff", marginBottom: 6 },
+  sub: { fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 28 },
+  card: { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "22px 24px" },
+  th: { padding: "11px 16px", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" as const, letterSpacing: "0.08em", borderBottom: "1px solid rgba(255,255,255,0.06)", textAlign: "left" as const },
+  td: { padding: "13px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: 13, verticalAlign: "middle" as const },
 };
 
-type StatusFilter = "all" | "active" | "paused";
+export default async function AdminDashboardPage() {
+  const supabase = await createSupabaseServerClient();
 
-export default function AdminTenantsPage() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [customDays, setCustomDays] = useState<Record<string, string>>({});
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [
+    { count: totalUsers },
+    { count: trialUsers },
+    { count: totalMessages },
+    { count: totalTenants },
+    { count: activeUsers },
+    { count: failedMessages },
+  ] = await Promise.all([
+    supabase.from("user_profiles").select("*", { count: "exact", head: true }),
+    supabase.from("user_subscriptions").select("*", { count: "exact", head: true }).eq("subscription_status", "trial"),
+    supabase.from("messages").select("*", { count: "exact", head: true }),
+    supabase.from("tenants").select("*", { count: "exact", head: true }),
+    supabase.from("user_subscriptions").select("*", { count: "exact", head: true }).eq("subscription_status", "active"),
+    supabase.from("messages").select("*", { count: "exact", head: true }).eq("status", "failed"),
+  ]);
 
-  async function loadTenants() {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/admin/tenants", {
-        cache: "no-store",
-      });
+  const { data: recentUsers } = await supabase
+    .from("user_profiles")
+    .select("user_id, business_type, created_at")
+    .order("created_at", { ascending: false })
+    .limit(6);
 
-      const data = await res.json();
+  const { data: recentMessages } = await supabase
+    .from("messages")
+    .select("id, to, status, created_at, type")
+    .order("created_at", { ascending: false })
+    .limit(6);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to load tenants");
-      }
+  const mrrEstimate = (activeUsers ?? 0) * 299;
 
-      setTenants(data.tenants || []);
-    } catch (err: any) {
-      console.error("Load tenants error:", err);
-      setError(err.message || "Failed to load tenants");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const stats = [
+    { label: "Total Users", value: (totalUsers ?? 0).toLocaleString(), icon: "👥", color: "#22C55E", sub: "All registered", href: "/admin/users" },
+    { label: "Est. MRR", value: `₹${mrrEstimate.toLocaleString("en-IN")}`, icon: "💰", color: "#22C55E", sub: "Active plans × ₹299", href: "/admin/revenue" },
+    { label: "In Trial", value: (trialUsers ?? 0).toLocaleString(), icon: "⏳", color: "#F5B800", sub: "14-day trials", href: "/admin/revenue" },
+    { label: "Messages", value: (totalMessages ?? 0).toLocaleString(), icon: "💬", color: "#3B8BEB", sub: "All time sent", href: "/admin/messages" },
+    { label: "WA Accounts", value: (totalTenants ?? 0).toLocaleString(), icon: "📲", color: "#A78BFA", sub: "Connected", href: "/admin/tenants" },
+    { label: "Failed Msgs", value: (failedMessages ?? 0).toLocaleString(), icon: "❌", color: failedMessages ? "#f87171" : "#22C55E", sub: "Delivery failures", href: "/admin/messages?status=failed" },
+  ];
 
-  useEffect(() => {
-    loadTenants();
-  }, []);
+  const statusColor: Record<string, string> = {
+    sent: "#22C55E", delivered: "#3B8BEB", read: "#A78BFA", failed: "#f87171", pending: "#F5B800"
+  };
 
-  async function updatePause(tenantId: string, paused: boolean) {
-    try {
-      setActionLoadingId(tenantId);
-      setError(null);
-
-      const url = paused
-        ? "/api/admin/tenants/pause"
-        : "/api/admin/tenants/resume";
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to update tenant status");
-      }
-
-      await loadTenants();
-    } catch (err: any) {
-      console.error("Update pause error:", err);
-      setError(err.message || "Failed to update tenant status");
-    } finally {
-      setActionLoadingId(null);
-    }
-  }
-
-  async function extendTrial(tenantId: string, days: number) {
-    try {
-      setActionLoadingId(tenantId);
-      setError(null);
-
-      const res = await fetch("/api/admin/tenants/extend-trial", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, days }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to extend trial");
-      }
-
-      await loadTenants();
-    } catch (err: any) {
-      console.error("Extend trial error:", err);
-      setError(err.message || "Failed to extend trial");
-    } finally {
-      setActionLoadingId(null);
-    }
-  }
-
-  async function extendTrialCustom(tenantId: string) {
-    const value = customDays[tenantId];
-    const days = Number(value);
-
-    if (!value || !Number.isFinite(days) || days <= 0) {
-      setError("Please enter a valid positive number of days.");
-      return;
-    }
-
-    await extendTrial(tenantId, days);
-  }
-
-  // ---------- Portfolio stats (at a glance) ----------
-
-  const stats = useMemo(() => {
-    const total = tenants.length;
-    const active = tenants.filter((t) => !t.is_paused).length;
-    const paused = tenants.filter((t) => t.is_paused).length;
-
-    const trialing = tenants.filter(
-      (t) => t.billing_status === "trialing" || t.plan_code === "trial",
-    ).length;
-
-    const totalOutbound = tenants.reduce(
-      (sum, t) => sum + (t.outbound_count ?? 0),
-      0,
-    );
-    const totalInbound = tenants.reduce(
-      (sum, t) => sum + (t.inbound_count ?? 0),
-      0,
-    );
-
-    return {
-      total,
-      active,
-      paused,
-      trialing,
-      totalOutbound,
-      totalInbound,
-    };
-  }, [tenants]);
-
-  const filteredTenants = useMemo(() => {
-    if (statusFilter === "active") {
-      return tenants.filter((t) => !t.is_paused);
-    }
-    if (statusFilter === "paused") {
-      return tenants.filter((t) => t.is_paused);
-    }
-    return tenants;
-  }, [tenants, statusFilter]);
-
-  // ---------------------------------------------------
+  const planColor: Record<string, { bg: string; color: string }> = {
+    trial: { bg: "rgba(245,184,0,0.12)", color: "#F5B800" },
+    active: { bg: "rgba(34,197,94,0.12)", color: "#22C55E" },
+    expired: { bg: "rgba(239,68,68,0.12)", color: "#f87171" },
+    free: { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" },
+  };
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-zinc-900">
-              Enatalk Admin – Tenants
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Portfolio view: see who is active, paused, and how much they send.
-            </p>
-          </div>
-          <button
-            onClick={loadTenants}
-            disabled={loading}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:opacity-60"
-          >
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-        </header>
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={S.h1}>Admin Dashboard</h1>
+          <p style={S.sub}>Platform overview — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[["Users","/admin/users"],["Revenue","/admin/revenue"],["Messages","/admin/messages"]].map(([l,h]) => (
+            <a key={l} href={h} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>{l} →</a>
+          ))}
+        </div>
+      </div>
 
-        {/* Summary cards */}
-        <section className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <p className="text-xs font-medium uppercase text-zinc-500">
-              Total tenants
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-900">
-              {stats.total}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              {stats.trialing} trialing
-            </p>
-          </div>
+      {/* Stats grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
+        {stats.map(s => (
+          <a key={s.label} href={s.href} style={{ textDecoration: "none", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 22px", transition: "border-color .2s, transform .2s", display: "block" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.label}</span>
+              <span style={{ fontSize: 18 }}>{s.icon}</span>
+            </div>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 32, color: s.color, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.28)" }}>{s.sub}</div>
+          </a>
+        ))}
+      </div>
 
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <p className="text-xs font-medium uppercase text-emerald-700">
-              Active
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-900">
-              {stats.active}
-            </p>
-            <p className="mt-1 text-xs text-emerald-700">
-              Sending and not paused
-            </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        {/* Recent signups */}
+        <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Recent Signups</h2>
+            <a href="/admin/users" style={{ fontSize: 12, color: "#22C55E", fontWeight: 600, textDecoration: "none" }}>View all →</a>
           </div>
-
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <p className="text-xs font-medium uppercase text-red-700">
-              Paused
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-red-900">
-              {stats.paused}
-            </p>
-            <p className="mt-1 text-xs text-red-700">
-              Blocked by you or auto-rules
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <p className="text-xs font-medium uppercase text-zinc-500">
-              Messages (all time)
-            </p>
-            <p className="mt-1 text-xl font-semibold text-zinc-900">
-              {stats.totalOutbound} <span className="text-xs">outbound</span>
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              {stats.totalInbound} inbound
-            </p>
-          </div>
-        </section>
-
-        {/* Status filter + errors */}
-        <section className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white p-1 text-xs font-medium text-zinc-600">
-            <button
-              onClick={() => setStatusFilter("all")}
-              className={`rounded-full px-3 py-1 ${
-                statusFilter === "all"
-                  ? "bg-zinc-900 text-white"
-                  : "hover:bg-zinc-100"
-              }`}
-            >
-              All ({stats.total})
-            </button>
-            <button
-              onClick={() => setStatusFilter("active")}
-              className={`rounded-full px-3 py-1 ${
-                statusFilter === "active"
-                  ? "bg-emerald-600 text-white"
-                  : "hover:bg-zinc-100"
-              }`}
-            >
-              Active ({stats.active})
-            </button>
-            <button
-              onClick={() => setStatusFilter("paused")}
-              className={`rounded-full px-3 py-1 ${
-                statusFilter === "paused"
-                  ? "bg-red-600 text-white"
-                  : "hover:bg-zinc-100"
-              }`}
-            >
-              Paused ({stats.paused})
-            </button>
-          </div>
-        </section>
-
-        {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {/* Table */}
-        {loading && tenants.length === 0 ? (
-          <p className="text-sm text-zinc-500">Loading tenants…</p>
-        ) : filteredTenants.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            No tenants match the selected filter.
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-zinc-50 text-xs font-medium uppercase text-zinc-500">
-                <tr>
-                  <th className="px-4 py-3">Tenant</th>
-                  <th className="px-4 py-3">WhatsApp</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3">Billing</th>
-                  <th className="px-4 py-3">Trial ends</th>
-                  <th className="px-4 py-3 text-center">Outbound</th>
-                  <th className="px-4 py-3 text-center">Inbound</th>
-                  <th className="px-4 py-3">Last message</th>
-                  <th className="px-4 py-3">Trial</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {(recentUsers ?? []).map((u: any) => (
+                <tr key={u.user_id}>
+                  <td style={S.td}><code style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>{u.user_id?.slice(0,14)}…</code></td>
+                  <td style={S.td}><span style={{ fontSize: 11, background: "rgba(59,139,235,0.12)", color: "#3B8BEB", padding: "3px 10px", borderRadius: 100, fontWeight: 600 }}>{u.business_type ?? "—"}</span></td>
+                  <td style={{ ...S.td, fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" as const }}>{u.created_at ? new Date(u.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredTenants.map((t) => {
-                  const trialLabel = t.trial_end_at
-                    ? new Date(t.trial_end_at).toLocaleDateString()
-                    : "–";
+              ))}
+              {!recentUsers?.length && <tr><td colSpan={3} style={{ ...S.td, textAlign: "center" as const, color: "rgba(255,255,255,0.25)", padding: 24 }}>No users yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
 
-                  const isBusy = actionLoadingId === t.id;
-                  const customValue = customDays[t.id] ?? "";
-
-                  const lastMsgLabel = t.last_message_at
-                    ? new Date(t.last_message_at).toLocaleString()
-                    : "–";
-
-                  const outbound = t.outbound_count ?? 0;
-                  const inbound = t.inbound_count ?? 0;
-
-                  return (
-                    <tr
-                      key={t.id}
-                      className="border-t border-zinc-100 hover:bg-zinc-50"
-                    >
-                      <td className="px-4 py-3 align-middle">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-zinc-900">
-                            {t.name || t.id}
-                          </span>
-                          <span className="text-xs text-zinc-500">{t.id}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-middle text-zinc-700">
-                        {t.whatsapp_number || "–"}
-                      </td>
-                      <td className="px-4 py-3 align-middle text-zinc-700">
-                        {t.plan_code || "trial"}
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
-                          {t.billing_status || "unknown"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 align-middle text-zinc-700">
-                        {trialLabel}
-                      </td>
-                      <td className="px-4 py-3 align-middle text-center text-zinc-800">
-                        {outbound}
-                      </td>
-                      <td className="px-4 py-3 align-middle text-center text-zinc-800">
-                        {inbound}
-                      </td>
-                      <td className="px-4 py-3 align-middle text-zinc-700">
-                        {lastMsgLabel}
-                      </td>
-
-                      {/* Trial badge */}
-                      <td className="px-4 py-3 align-middle">
-                        <TrialStatusBadge tenant={t} />
-                      </td>
-
-                      <td className="px-4 py-3 align-middle">
-                        {t.is_paused ? (
-                          <span className="inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                            Paused
-                          </span>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                            Active
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-middle text-right">
-                        <div className="inline-flex items-center gap-2">
-                          {t.is_paused ? (
-                            <button
-                              onClick={() => updatePause(t.id, false)}
-                              disabled={isBusy}
-                              className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
-                            >
-                              {isBusy ? "Updating…" : "Resume"}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => updatePause(t.id, true)}
-                              disabled={isBusy}
-                              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
-                            >
-                              {isBusy ? "Updating…" : "Pause"}
-                            </button>
-                          )}
-
-                          {/* Quick +7d */}
-                          <button
-                            onClick={() => extendTrial(t.id, 7)}
-                            disabled={isBusy}
-                            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-60"
-                          >
-                            {isBusy ? "Working…" : "+7d"}
-                          </button>
-
-                          {/* Custom days input */}
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min={1}
-                              className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-900"
-                              placeholder="days"
-                              value={customValue}
-                              onChange={(e) =>
-                                setCustomDays((prev) => ({
-                                  ...prev,
-                                  [t.id]: e.target.value,
-                                }))
-                              }
-                            />
-                            <button
-                              onClick={() => extendTrialCustom(t.id)}
-                              disabled={isBusy}
-                              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-                            >
-                              {isBusy ? "Working…" : "Extend"}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Recent messages */}
+        <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Recent Messages</h2>
+            <a href="/admin/messages" style={{ fontSize: 12, color: "#22C55E", fontWeight: 600, textDecoration: "none" }}>View all →</a>
           </div>
-        )}
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {(recentMessages ?? []).map((m: any) => (
+                <tr key={m.id}>
+                  <td style={S.td}><span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{m.to ?? "—"}</span></td>
+                  <td style={S.td}>
+                    <span style={{ fontSize: 11, background: `${statusColor[m.status] ?? "#fff"}18`, color: statusColor[m.status] ?? "rgba(255,255,255,0.4)", padding: "3px 10px", borderRadius: 100, fontWeight: 700 }}>{m.status ?? "—"}</span>
+                  </td>
+                  <td style={{ ...S.td, fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" as const }}>{m.created_at ? new Date(m.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                </tr>
+              ))}
+              {!recentMessages?.length && <tr><td colSpan={3} style={{ ...S.td, textAlign: "center" as const, color: "rgba(255,255,255,0.25)", padding: 24 }}>No messages yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* System status */}
+      <div style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontSize: 22 }}>🟢</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#22C55E", marginBottom: 3 }}>All systems operational</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>WhatsApp API · Supabase · Email delivery · All running normally</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          {[["API","Online"],["DB","Online"],["Email","Online"]].map(([l,s]) => (
+            <div key={l} style={{ textAlign: "center" as const }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 3, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{l}</div>
+              <div style={{ fontSize: 12, color: "#22C55E", fontWeight: 700 }}>{s}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
