@@ -4,7 +4,7 @@
 import { useState } from 'react';
 
 const TENANT_ID = '92e013de-1cd6-48eb-bcc3-92f4afc107ce';
-const CONNECTION_ID = '4bbc2e87-3194-4163-a716-1efc0f41fe35'; // ← FIXED
+const CONNECTION_ID = '12c3d375-897b-4d1d-811b-664d295c3fa1';
 
 export default function TestWhatsappPage() {
   const [to, setTo] = useState('919674338804');

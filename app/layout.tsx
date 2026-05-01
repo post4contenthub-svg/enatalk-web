@@ -34,6 +34,13 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   verification: {
+  
+
+  google: "1VtXs3OAVfOcrWypSXSI0rhlDz7AwYoYIiA3saS8HPk",
+
+
+
+
     // Add Google Search Console verification here when ready
     // google: "your-verification-code",
   },
