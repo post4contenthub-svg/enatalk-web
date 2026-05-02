@@ -27,7 +27,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { plan
     supabase.from("user_profiles").select("*", { count: "exact", head: true }),
   ]);
 
-  const totalPages = Math.ceil(((count ?? 0) + authUsers?.length ?? 0) / limit);
+  const totalPages = Math.ceil((authUsers?.length ?? 0) / limit);
 
   const planColor: Record<string, { bg: string; color: string }> = {
     trial:    { bg: "rgba(245,184,0,0.12)",  color: "#F5B800" },
