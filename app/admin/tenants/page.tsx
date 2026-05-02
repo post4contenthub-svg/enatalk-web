@@ -12,46 +12,83 @@ const S = {
 export default async function TenantsPage() {
   const supabase = await createSupabaseServerClient();
 
-  const { data: tenants, count } = await supabase
-    .from("tenants")
-    .select("*", { count: "exact" })
+  // Try wa_connections first (your actual table)
+  const { data: connections, error: connErr } = await supabase
+    .from("wa_connections")
+    .select("*")
     .order("created_at", { ascending: false });
+
+  // Also try tenants table
+  const { data: tenants } = await supabase
+    .from("tenants")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const allConnections = connections ?? [];
+  const allTenants = tenants ?? [];
 
   return (
     <div>
-      <h1 style={S.h1}>Tenants</h1>
-      <p style={S.sub}>{count ?? 0} WhatsApp accounts connected</p>
+      <h1 style={S.h1}>WhatsApp Connections</h1>
+      <p style={S.sub}>{allConnections.length} WhatsApp numbers connected · {allTenants.length} tenants</p>
 
+      {/* WA Connections table */}
+      <h2 style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 12 }}>wa_connections</h2>
+      <div style={{ ...S.card, marginBottom: 28 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>{["ID","Tenant ID","Phone Number ID","Phone","Status","Connected"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {allConnections.map((c: any) => (
+              <tr key={c.id}>
+                <td style={S.td}><code style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "3px 8px", borderRadius: 6 }}>{c.id?.slice(0,16)}…</code></td>
+                <td style={S.td}><code style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{c.tenant_id?.slice(0,16)}…</code></td>
+                <td style={{ ...S.td, color: "#22C55E", fontWeight: 600, fontSize: 12 }}>{c.phone_number_id ?? "—"}</td>
+                <td style={{ ...S.td, color: "#fff", fontWeight: 600 }}>{c.phone ?? "—"}</td>
+                <td style={S.td}>
+                  <span style={{ fontSize: 11, background: c.status === "active" ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.06)", color: c.status === "active" ? "#22C55E" : "rgba(255,255,255,0.4)", padding: "3px 10px", borderRadius: 100, fontWeight: 700 }}>
+                    {c.status ?? "active"}
+                  </span>
+                </td>
+                <td style={{ ...S.td, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                </td>
+              </tr>
+            ))}
+            {!allConnections.length && (
+              <tr><td colSpan={6} style={{ ...S.td, textAlign: "center", color: "rgba(255,255,255,0.25)", padding: 40 }}>No WhatsApp connections yet</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Tenants table */}
+      <h2 style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 12 }}>tenants</h2>
       <div style={S.card}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr>{["Tenant ID","Phone Number","WA Account ID","Status","Connected","Actions"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
+            <tr>{["ID","Name","Plan","Status","Paused","Created"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
           </thead>
           <tbody>
-            {(tenants ?? []).map((t: any) => {
-              const isActive = t.is_active ?? true;
-              return (
-                <tr key={t.id}>
-                  <td style={S.td}><code style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.05)", padding: "3px 8px", borderRadius: 6 }}>{t.id?.slice(0,16)}…</code></td>
-                  <td style={{ ...S.td, color: "#fff", fontWeight: 600 }}>{t.phone_number ?? "—"}</td>
-                  <td style={S.td}><code style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{t.whatsapp_account_id ?? "—"}</code></td>
-                  <td style={S.td}>
-                    <span style={{ fontSize: 11, background: isActive ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: isActive ? "#22C55E" : "#f87171", padding: "3px 10px", borderRadius: 100, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: isActive ? "#22C55E" : "#f87171" }}/>
-                      {isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td style={{ ...S.td, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    {t.created_at ? new Date(t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
-                  </td>
-                  <td style={S.td}>
-                    <a href={`/admin/tenants/${t.id}`} style={{ fontSize: 12, color: "#22C55E", fontWeight: 600, textDecoration: "none", padding: "5px 12px", background: "rgba(34,197,94,0.1)", borderRadius: 8, border: "1px solid rgba(34,197,94,0.2)" }}>View →</a>
-                  </td>
-                </tr>
-              );
-            })}
-            {!tenants?.length && (
-              <tr><td colSpan={6} style={{ ...S.td, textAlign: "center", color: "rgba(255,255,255,0.25)", padding: 40 }}>No tenants connected yet</td></tr>
+            {allTenants.map((t: any) => (
+              <tr key={t.id}>
+                <td style={S.td}><code style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "3px 8px", borderRadius: 6 }}>{t.id?.slice(0,16)}…</code></td>
+                <td style={{ ...S.td, color: "#fff", fontWeight: 600 }}>{t.name ?? "—"}</td>
+                <td style={S.td}><span style={{ fontSize: 11, background: "rgba(34,197,94,0.12)", color: "#22C55E", padding: "3px 10px", borderRadius: 100, fontWeight: 700 }}>{t.plan_code ?? t.plan ?? "free"}</span></td>
+                <td style={S.td}><span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{t.billing_status ?? "—"}</span></td>
+                <td style={S.td}>
+                  <span style={{ fontSize: 11, background: t.is_paused ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)", color: t.is_paused ? "#f87171" : "#22C55E", padding: "3px 10px", borderRadius: 100, fontWeight: 700 }}>
+                    {t.is_paused ? "Paused" : "Active"}
+                  </span>
+                </td>
+                <td style={{ ...S.td, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                  {t.created_at ? new Date(t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                </td>
+              </tr>
+            ))}
+            {!allTenants.length && (
+              <tr><td colSpan={6} style={{ ...S.td, textAlign: "center", color: "rgba(255,255,255,0.25)", padding: 40 }}>No tenants found</td></tr>
             )}
           </tbody>
         </table>
